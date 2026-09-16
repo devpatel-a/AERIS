@@ -53,6 +53,22 @@ def list_missions() -> list[str]:
     return get_app_state().mission_registry.list_missions()
 
 
+@app.get("/api/engine_config/{engine_id}")
+def engine_config(engine_id: str) -> dict:
+    """Return an engine's limits/rating (used by the dashboard for gauge scaling)."""
+    try:
+        cfg = get_app_state().engine_registry.get(engine_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {
+        "engine_id": cfg.engine_id,
+        "display_name": cfg.display_name,
+        "limits": cfg.limits.model_dump(),
+        "rating": cfg.rating.model_dump(),
+        "cylinders": cfg.geometry.cylinders,
+    }
+
+
 @app.post("/api/live/start", dependencies=[Depends(require_token)])
 async def start_live(req: StartLiveRequest) -> dict:
     """Start a LIVE-mode demo session (simulated telemetry standing in for CAN)."""
@@ -136,22 +152,35 @@ def degradation_state() -> dict:
 
 @app.post("/api/mission_risk/check")
 def mission_risk_check(req: MissionRiskRequest) -> dict:
-    """Run a mission go/no-go Monte Carlo check."""
+    """Run a mission go/no-go Monte Carlo check.
+
+    This is CPU-bound pure-Python physics work that holds the GIL for the
+    whole computation, so only one such check may run at a time (see
+    `AppState.mission_risk_lock`) — a second concurrent request fails fast
+    with 409 rather than silently slowing both to a crawl.
+    """
     state = get_app_state()
-    engine_config = state.engine_registry.get(req.engine_id)
-    mission = state.mission_registry.get(req.mission_id)
+    if not state.mission_risk_lock.acquire(blocking=False):
+        raise HTTPException(
+            status_code=409, detail="A mission risk check is already running; please wait for it to finish."
+        )
+    try:
+        engine_config = state.engine_registry.get(req.engine_id)
+        mission = state.mission_registry.get(req.mission_id)
 
-    if req.use_current_health and state.session is not None:
-        current_health = state.session.twin.model.health.copy()
-    else:
-        from aerotwin.physics.state import nominal_health_vector
+        if req.use_current_health and state.session is not None:
+            current_health = state.session.twin.model.health.copy()
+        else:
+            from aerotwin.physics.state import nominal_health_vector
 
-        current_health = nominal_health_vector(engine_config.nominal_health.injector_flow_coeff)
+            current_health = nominal_health_vector(engine_config.nominal_health.injector_flow_coeff)
 
-    result = run_mission_go_no_go(
-        engine_config, mission, current_health,
-        n_monte_carlo=req.n_monte_carlo, max_duration_s=req.max_duration_s,
-    )
+        result = run_mission_go_no_go(
+            engine_config, mission, current_health,
+            n_monte_carlo=req.n_monte_carlo, max_duration_s=req.max_duration_s,
+        )
+    finally:
+        state.mission_risk_lock.release()
     return {
         "verdict": result.verdict,
         "reasons": result.reasons,
@@ -177,6 +206,17 @@ def download_report(mission_run_id: str) -> FileResponse:
     out_path = Path("data") / "reports" / f"{mission_run_id}.pdf"
     generate_mission_report(log_path, engine_config, out_path, mission_run_id)
     return FileResponse(out_path, media_type="application/pdf", filename=out_path.name)
+
+
+@app.get("/api/ml_summary")
+def ml_summary() -> dict:
+    """Return the latest offline training results (from `scripts/train_all.py`), if available."""
+    import json
+
+    path = Path("models") / "train_results.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="No trained model results found. Run `make train` first.")
+    return json.loads(path.read_text())
 
 
 @app.get("/api/replay/list")

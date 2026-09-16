@@ -67,10 +67,10 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] Tests: TestClient
 
 ## M8 — Dashboard
-- [ ] React/Vite/TS/Tailwind/ECharts app, dark GCS theme
-- [ ] Pages: Live Ops, Twin Comparison, Diagnostics, Trends, Mission Planner,
+- [x] React/Vite/TS/Tailwind/ECharts app, dark GCS theme
+- [x] Pages: Live Ops, Twin Comparison, Diagnostics, Trends, Mission Planner,
       Replay, Demo Control, Reports
-- [ ] Auto-reconnecting WebSocket
+- [x] Auto-reconnecting WebSocket
 
 ## M9 — Replay, reports, generalization, deployment
 - [ ] Replay engine

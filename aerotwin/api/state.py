@@ -5,6 +5,7 @@ alert manager, and storage handles used by the FastAPI routes.
 from __future__ import annotations
 
 import asyncio
+import threading
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -69,6 +70,12 @@ class AppState:
         self.db = get_connection()
         self.session: Session | None = None
         self.replay: ReplaySession | None = None
+        # Mission-risk Monte Carlo is CPU-bound pure-Python physics work that holds the
+        # GIL; letting two overlapping requests (e.g. an impatient double-click, or a
+        # client retrying after its own timeout) run concurrently makes both — and
+        # everything else in the process — many times slower rather than sharing
+        # progress. One at a time; a second caller gets a clear 409 instead of a stall.
+        self.mission_risk_lock = threading.Lock()
 
     def start_session(self, mode: SessionMode, engine_id: str, mission_id: str, speed: float) -> Session:
         """Create and register a new LIVE or SIMULATION session (stops any existing one)."""
