@@ -33,12 +33,12 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] Tests: each fault signature
 
 ## M4 — CAN acquisition, processing, storage
-- [ ] configs/can/aerotwin.dbc
-- [ ] CAN publisher + receiver (vcan0 / virtual fallback)
-- [ ] Processing pipeline (resample 20Hz, filter, validate, feature extract)
-- [ ] DataSource interface (CAN / Parquet replay / simulator)
-- [ ] Storage (live buffer, Parquet, SQLite)
-- [ ] Tests: loopback bus
+- [x] configs/can/aerotwin.dbc
+- [x] CAN publisher + receiver (vcan0 / virtual fallback)
+- [x] Processing pipeline (resample 20Hz, filter, validate, feature extract)
+- [x] DataSource interface (CAN / Parquet replay / simulator)
+- [x] Storage (live buffer, Parquet, SQLite)
+- [x] Tests: loopback bus
 
 ## M5 — Twin core, UKF estimator, residuals, health
 - [ ] DigitalTwin class (mode, current/expected/performance/degradation/

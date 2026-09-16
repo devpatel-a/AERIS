@@ -132,4 +132,33 @@ the M6 RUL model; the rest step to a fixed mid-severity partway through the
 run, which is more representative of a detectable-but-not-yet-critical
 fault window.
 
+## D14 — CAN bus fallback is capability-based, not OS-based (M4)
+`aerotwin.acquisition.bus.get_can_bus` always *tries* SocketCAN on `vcan0`
+first and only falls back to python-can's in-process `virtual` bus on
+failure, rather than branching on `platform.system()`. This is more
+correct (a Linux container without the `vcan` kernel module loaded behaves
+like "non-Linux" for this purpose) and is what makes the test suite
+portable: `tests/test_can_acquisition.py` always exercises the virtual bus
+directly, since this sandboxed build environment cannot load kernel
+modules. `scripts/setup_vcan.sh` is provided for a real Linux host/CI
+runner with the right privileges.
+
+## D15 — Heartbeat "CRC" is a 16-bit rolling checksum
+`checksum16` (sum of the counter and status bytes mod 65536) stands in for
+a real CRC-16/CCITT — it is enough to prove the corruption-detection and
+gap-counting mechanics end-to-end (and is what
+`test_heartbeat_gap_detection` / `test_checksum_detects_corruption`
+verify) without pulling in a CRC library for a hackathon build. Swapping in
+a real CRC-16 later is a one-function change in
+`aerotwin/acquisition/publisher.py` / `receiver.py`.
+
+## D16 — DataSource is the seam between LIVE/REPLAY/SIMULATION
+`aerotwin.acquisition.datasource.DataSource` is a 4-line ABC
+(`read() -> dict | None`, `close()`), with `SimulatorDataSource`,
+`ParquetReplayDataSource`, and `CanDataSource` behind it. `aerotwin.api`
+(M7) and the Digital Twin Core (M5) depend only on this interface, never on
+which concrete source is active — switching LIVE/REPLAY/SIMULATION is a
+matter of swapping which `DataSource` is plugged into the same
+processing/twin pipeline, not writing three separate code paths.
+
 (Further decisions appended below as milestones progress.)

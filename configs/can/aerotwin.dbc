@@ -1,0 +1,94 @@
+VERSION ""
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_DEF_SGTYPE_
+    BA_SGTYPE_
+    SIG_TYPE_REF_
+    VAL_TABLE_
+    SIG_GROUP_
+    SIG_VALTYPE_
+    SIGTYPE_VALTYPE_
+    BO_TX_BU_
+    BA_DEF_REL_
+    BA_REL_
+    BA_DEF_DEF_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU GCS
+
+BO_ 256 ENGINE_CORE: 8 ECU
+ SG_ RPM : 0|16@1+ (1,0) [0|8000] "rpm" GCS
+ SG_ MAP_KPA : 16|16@1+ (0.1,0) [0|300] "kPa" GCS
+ SG_ THROTTLE_PCT : 32|8@1+ (0.5,0) [0|100] "%" GCS
+ SG_ INJ_TIMING_DEG : 40|16@1- (0.1,-100) [-100|100] "deg" GCS
+
+BO_ 257 TEMPS_CHT: 8 ECU
+ SG_ CHT1_K : 0|16@1+ (0.1,0) [0|1000] "K" GCS
+ SG_ CHT2_K : 16|16@1+ (0.1,0) [0|1000] "K" GCS
+ SG_ CHT3_K : 32|16@1+ (0.1,0) [0|1000] "K" GCS
+ SG_ CHT4_K : 48|16@1+ (0.1,0) [0|1000] "K" GCS
+
+BO_ 258 TEMPS_EGT: 8 ECU
+ SG_ EGT1_K : 0|16@1+ (0.5,0) [0|2000] "K" GCS
+ SG_ EGT2_K : 16|16@1+ (0.5,0) [0|2000] "K" GCS
+ SG_ EGT3_K : 32|16@1+ (0.5,0) [0|2000] "K" GCS
+ SG_ EGT4_K : 48|16@1+ (0.5,0) [0|2000] "K" GCS
+
+BO_ 259 TEMPS_OIL_COOLANT: 8 ECU
+ SG_ OIL_TEMP_K : 0|16@1+ (0.1,0) [0|600] "K" GCS
+ SG_ COOLANT_TEMP_K : 16|16@1+ (0.1,0) [0|600] "K" GCS
+
+BO_ 260 PRESSURES_FUEL: 8 ECU
+ SG_ OIL_PRESSURE_KPA : 0|16@1+ (0.1,0) [0|1000] "kPa" GCS
+ SG_ FUEL_PRESSURE_KPA : 16|16@1+ (0.1,0) [0|1000] "kPa" GCS
+ SG_ FUEL_FLOW_G_S : 32|16@1+ (0.01,0) [0|100] "g/s" GCS
+
+BO_ 261 ELECTRICAL: 8 ECU
+ SG_ BUS_VOLTAGE_V : 0|16@1+ (0.01,0) [0|40] "V" GCS
+ SG_ ALT_CURRENT_A : 16|16@1- (0.1,-200) [-200|200] "A" GCS
+ SG_ BATTERY_SOC_PCT : 32|8@1+ (0.5,0) [0|100] "%" GCS
+
+BO_ 262 VIBRATION: 8 ECU
+ SG_ VIB_RMS_MG : 0|16@1+ (1,0) [0|5000] "mg" GCS
+ SG_ VIB_ORDER_05_MG : 16|16@1+ (1,0) [0|5000] "mg" GCS
+ SG_ VIB_ORDER_1_MG : 32|16@1+ (1,0) [0|5000] "mg" GCS
+ SG_ VIB_ORDER_2_MG : 48|16@1+ (1,0) [0|5000] "mg" GCS
+
+BO_ 263 AMBIENT: 8 ECU
+ SG_ OAT_K : 0|16@1+ (0.1,0) [0|400] "K" GCS
+ SG_ STATIC_P_PA : 16|16@1+ (10,0) [0|110000] "Pa" GCS
+ SG_ ALTITUDE_M : 32|16@1+ (1,-1000) [-1000|15000] "m" GCS
+ SG_ AIRSPEED_MPS : 48|8@1+ (0.5,0) [0|150] "m/s" GCS
+
+BO_ 264 HEARTBEAT: 8 ECU
+ SG_ COUNTER : 0|16@1+ (1,0) [0|65535] "" GCS
+ SG_ CRC : 16|16@1+ (1,0) [0|65535] "" GCS
+ SG_ STATUS : 32|8@1+ (1,0) [0|255] "" GCS
+
+CM_ BO_ 256 "Core engine parameters: RPM, MAP, throttle command, injection timing.";
+CM_ BO_ 257 "Cylinder head temperatures, per cylinder.";
+CM_ BO_ 258 "Exhaust gas temperatures, per cylinder.";
+CM_ BO_ 259 "Oil and coolant temperature.";
+CM_ BO_ 260 "Oil/fuel pressure and fuel flow.";
+CM_ BO_ 261 "Electrical bus voltage, alternator current, battery state of charge.";
+CM_ BO_ 262 "Vibration RMS and crank-order band features.";
+CM_ BO_ 263 "Ambient conditions: OAT, static pressure, altitude, airspeed.";
+CM_ BO_ 264 "Heartbeat: rolling counter + CRC for link-integrity checking.";
