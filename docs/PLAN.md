@@ -73,10 +73,10 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] Auto-reconnecting WebSocket
 
 ## M9 — Replay, reports, generalization, deployment
-- [ ] Replay engine
-- [ ] Post-flight summary + PDF report
-- [ ] Second engine YAML (NA, air-cooled, carbureted) — no code changes
-- [ ] docker-compose (backend + dashboard)
+- [x] Replay engine
+- [x] Post-flight summary + PDF report
+- [x] Second engine YAML (NA, air-cooled, carbureted) — no code changes
+- [x] docker-compose (backend + dashboard)
 
 ## M10 — Demo and documentation
 - [ ] scripts/demo.py full storyline with timestamps

@@ -1,0 +1,106 @@
+# AeroTwin engine definition — naturally-aspirated, air-cooled, carbureted
+# reference (Lycoming O-235/UAV-class 4-cylinder boxer). Used to prove the
+# full pipeline (physics, faults, twin, ML, API, dashboard) works with a
+# second engine via config alone — no code changes required.
+engine_id: na_carbureted_like
+display_name: "NA air-cooled carbureted boxer (representative)"
+
+geometry:
+  cylinders: 4
+  firing_order: [1, 3, 2, 4]  # approx — replace with OEM data
+  bore_m: 0.098
+  stroke_m: 0.0864
+  displacement_m3: 0.00387
+  compression_ratio: 8.5  # approx — replace with OEM data
+  layout: "boxer"
+
+rating:
+  rated_power_w: 85800.0     # ~115 hp, matched to primary engine for comparability
+  rated_rpm: 2800.0          # approx — replace with OEM data (direct-drive, no gearbox)
+  max_rpm: 2900.0
+  idle_rpm: 700.0
+
+turbo:
+  present: false             # naturally aspirated — no forced induction
+  critical_altitude_m: 0.0
+  wastegate_max_map_kpa: 101.3   # NA ceiling == sea-level ambient pressure
+  spool_time_constant_s: 0.0
+  turbo_efficiency_nominal: 1.0
+
+cooling:
+  type: "air_cooled"          # fully air-cooled cylinders (no coolant loop)
+  cooling_effectiveness_nominal: 1.0
+  coolant_target_k: 0.0        # unused for air-cooled — no liquid coolant loop
+  cylinder_ambient_htc_ref: 70.0     # approx — replace with OEM data
+
+fuel:
+  system_type: "carburetor"
+  stoich_afr: 14.7
+  injector_flow_coeff_nominal: [1.0, 1.0, 1.0, 1.0]  # carb float-bowl balance proxy
+  base_injection_advance_deg: 25.0   # carb: fixed magneto timing advance, approx
+
+# Volumetric efficiency map: VE(rpm, map_kpa) — NA engines only ever see MAP
+# up to ~ambient pressure, so the map's high end tops out near 101 kPa.
+ve_map:
+  rpm_breakpoints: [700, 1200, 1800, 2400, 2800]
+  map_breakpoints_kpa: [30, 50, 70, 85, 100]
+  # approx — replace with OEM data (rows = rpm, cols = map)
+  ve_table:
+    - [0.50, 0.58, 0.64, 0.68, 0.70]
+    - [0.58, 0.68, 0.76, 0.80, 0.82]
+    - [0.62, 0.74, 0.82, 0.86, 0.88]
+    - [0.60, 0.72, 0.80, 0.84, 0.86]
+    - [0.56, 0.68, 0.76, 0.80, 0.82]
+
+limits:
+  max_cht_k: 505.0            # ~232 C, approx — replace with OEM data
+  max_egt_k: 1170.0           # ~897 C, approx — replace with OEM data
+  max_oil_temp_k: 391.0       # ~118 C, approx — replace with OEM data
+  min_oil_pressure_kpa: 170.0 # approx — replace with OEM data
+  max_oil_pressure_kpa: 450.0 # approx — replace with OEM data
+  max_map_kpa: 102.0
+  min_coolant_temp_k: 280.0   # unused for air-cooled
+  max_coolant_temp_k: 400.0   # unused for air-cooled
+
+propeller:
+  diameter_m: 1.9              # approx — replace with OEM data
+  load_coefficient: 0.0039      # crank-referred: torque_load = k*omega^2/gear_ratio^3, approx
+  gear_ratio: 1.0               # direct drive, no reduction gearbox
+  inertia_kg_m2: 0.55           # approx — replace with OEM data
+
+thermal_masses:
+  cylinder_thermal_mass_j_per_k: 3600.0   # approx — replace with OEM data
+  coolant_thermal_mass_j_per_k: 9000.0    # unused for air-cooled, kept for schema compatibility
+  oil_thermal_mass_j_per_k: 6500.0        # approx — replace with OEM data
+  egt_lag_time_constant_s: 0.7            # approx — replace with OEM data
+
+lubrication:
+  oil_pump_efficiency_nominal: 1.0
+  oil_pressure_ref_kpa: 350.0             # approx — replace with OEM data
+  oil_pressure_rpm_ref: 2400.0
+
+electrical:
+  alternator_efficiency_nominal: 0.85     # approx — replace with OEM data
+  nominal_bus_voltage_v: 14.0             # 12V-class electrical system
+  battery_capacity_ah: 25.0               # approx — replace with OEM data
+  base_load_a: 6.0                        # approx — replace with OEM data
+
+vibration:
+  crank_orders: [0.5, 1.0, 2.0]
+  baseline_rms_g: 0.12                     # approx — replace with OEM data
+  misfire_order_gain: 3.0                  # approx — replace with OEM data
+  imbalance_order_gain: 2.0                # approx — replace with OEM data
+
+friction:
+  friction_factor_nominal: 1.0
+  friction_torque_ref_nm: 10.0             # approx — replace with OEM data
+  friction_rpm_ref: 2400.0
+
+nominal_health:
+  volumetric_efficiency_factor: 1.0
+  cooling_effectiveness: 1.0
+  injector_flow_coeff: [1.0, 1.0, 1.0, 1.0]
+  friction_factor: 1.0
+  oil_pump_efficiency: 1.0
+  turbo_efficiency: 1.0
+  alternator_efficiency: 1.0

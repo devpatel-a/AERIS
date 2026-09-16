@@ -9,7 +9,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from aerotwin.twin.config import EngineConfig
 
@@ -95,8 +95,14 @@ def generate_mission_report(
 
     if "fault_type" in df.columns:
         fault_types = sorted(set(df["fault_type"]) - {"healthy"})
-        story.append(Paragraph("Anomalies / faults observed", styles["Heading2"]))
-        story.append(Paragraph(", ".join(fault_types) if fault_types else "None", styles["Normal"]))
+        story.append(
+            KeepTogether(
+                [
+                    Paragraph("Anomalies / faults observed", styles["Heading2"]),
+                    Paragraph(", ".join(fault_types) if fault_types else "None", styles["Normal"]),
+                ]
+            )
+        )
 
     doc.build(story)
     return out_path

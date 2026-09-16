@@ -295,4 +295,54 @@ worst-case thermal margins are already visible within its climb/early
 -cruise window, and running 10+ full-length Monte Carlo samples through the
 API within an interactive request would be far too slow.
 
+## D27 — The demo runs an accelerated window, not the literal 18 simulated hours (M10)
+An early version of `scripts/demo.py` tried a 30-second UKF update cadence
+over the full `isr_18h_endurance` mission to keep runtime short. The UKF
+diverged (`LinAlgError: ... not positive definite`): a single RK4 step of
+30 simulated seconds is too large for this engine's fast dynamics (intake
+filling, crank speed) to stay numerically stable inside the unscented
+transform — the M5 early-detection test's 1.0s cadence is the validated
+stable choice (D17), and that cost (~17ms/update) is what it is. Running
+that cadence for the *full* 18 hours (64800 updates) is correct but takes
+~18 real minutes. Since the demo's purpose is to show the detection
+storyline, not to additionally prove 18-hour runtime scaling (already
+covered separately by `test_speed_benchmark_50x_realtime` and the M1/M2
+timing notes), `scripts/demo.py` instead runs the *exact* scenario
+`test_cooling_degradation_early_detection` already validates (a 25-minute
+hot, low-airspeed cruise/loiter window, onset=100s, ramp=900s,
+severity=0.6) at the stable 1.0s UKF cadence — same physics, same fault
+mechanics, same detection logic, a representative slice of the mission
+instead of its full duration. The full 18-hour profile remains exactly
+as specified in `configs/missions/isr_18h_endurance.yaml` and is what
+`scripts/run_mission.py`, `scripts/generate_dataset.py`, and the Mission
+Planner page actually run.
+
+## D28 — Generalization proof: same code, second engine config only (M9)
+`configs/engines/na_carbureted_like.yaml` describes a naturally-aspirated,
+air-cooled, carbureted boxer (`turbo.present: false`, `cooling.type:
+"air_cooled"`, `fuel.system_type: "carburetor"`). It required zero changes
+to `aerotwin/physics`, `aerotwin/twin`, `aerotwin/faults`,
+`aerotwin/simulation`, or the API — only calibrating its own
+`propeller.load_coefficient` and `limits.max_egt_k` the same way the
+primary engine was calibrated in D6 (throttle sweep to WOT rated RPM/
+power, then a small margin above the resulting steady-state EGT).
+`tests/test_second_engine.py` runs the full stack against it: registry
+lookup, steady-state limits, mission + fault injection, DigitalTwin, and
+mission go/no-go — proving the "no code changes" claim rather than just
+asserting it.
+
+## D29 — Docker daemon unavailable in this build environment
+`docker compose config` validates the compose file cleanly, and both
+Dockerfiles (backend: pip install -e the package; dashboard: multi-stage
+Vite build → nginx) build on standard images, but this sandboxed session
+has no reachable Docker daemon (`docker info` fails to connect to
+`/var/run/docker.sock`), so an actual `docker compose build`/`up` could not
+be exercised end-to-end here. The backend and dashboard were instead
+verified directly (`uvicorn` + `npm run dev`) against each other, including
+live WebSocket streaming, fault injection, and a mission-risk check
+through the real browser UI — the Dockerfiles wrap that exact same
+`pip install -e .` / `npm run build` path, so this is a reasonably low-risk
+gap, but it is an untested step and worth a real `docker compose up`
+before relying on it operationally.
+
 (Further decisions appended below as milestones progress.)
