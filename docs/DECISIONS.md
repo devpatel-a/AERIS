@@ -161,4 +161,44 @@ which concrete source is active — switching LIVE/REPLAY/SIMULATION is a
 matter of swapping which `DataSource` is plugged into the same
 processing/twin pipeline, not writing three separate code paths.
 
+## D17 — UKF correction runs at ~1 Hz, not the full 20 Hz tick (M5)
+The augmented UKF state is 23-dim (13 reduced physics states + 10 health
+params), so each predict+update needs 2*(2*23+1)=94 sigma-point
+evaluations; reusing `EngineModel` for each (for a single, non-duplicated
+physics implementation) measured ~17ms per full UKF step regardless of its
+internal `dt`. Running that every 20 Hz tick (50ms budget) would leave
+almost no headroom for anything else in the loop or for accelerated
+playback. Since health parameters are explicitly "slowly varying" per the
+spec, `DigitalTwin` instead runs one UKF correction per
+`ukf_update_interval_s` (default 1.0s) — reseeding the UKF's physics
+substate from the twin's own fine-grained (20 Hz) `EngineModel` state each
+time — while computing residuals every tick from the twin's continuously
+-integrated `EngineModel` (held at the last corrected health estimate).
+This is a predictor-corrector pattern: 20 Hz predictor (deterministic
+physics), ~1 Hz corrector (UKF), and it is what
+`test_cooling_degradation_early_detection` validates end-to-end (UKF
+converges to within ~0.6% of true `cooling_effectiveness`; runs in ~40s
+wall time for a 1300s scenario).
+
+## D18 — Health indices combine estimated health params with limit margins
+Each subsystem's 0-100 index is driven primarily by its corresponding UKF
+health parameter (e.g. `cooling_effectiveness` -> cooling index), with a
+secondary margin-based penalty as the relevant measured output approaches
+its configured hard limit (e.g. CHT nearing `max_cht_k`). This is what lets
+the index move *before* any hard-limit alarm fires (the M5 key test), since
+the health parameter degrades continuously while the limit is a discrete
+threshold crossed only much later. Overall risk level is the *worst* of any
+subsystem's risk level (bottleneck-driven), while the overall numeric index
+is a weighted average (approx weights) for dashboard trending.
+
+## D19 — Sensor-vs-engine fault locus uses a simple odd-one-out heuristic
+`classify_fault_locus` compares each channel's normalized-residual
+magnitude against the median of its correlated-group siblings
+(`CORRELATED_GROUPS`: the 4 CHTs, the 4 EGTs). A channel far above both an
+absolute threshold and a multiple of its siblings' median is flagged
+`"sensor"`; if the whole group is elevated together, every member is
+flagged `"engine"` (common-mode). This is the M5 "core rule" analytical
+redundancy check, kept to the two grouped channel families that actually
+have per-cylinder redundancy in this engine.
+
 (Further decisions appended below as milestones progress.)

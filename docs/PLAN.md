@@ -41,12 +41,12 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] Tests: loopback bus
 
 ## M5 — Twin core, UKF estimator, residuals, health
-- [ ] DigitalTwin class (mode, current/expected/performance/degradation/
+- [x] DigitalTwin class (mode, current/expected/performance/degradation/
       health state)
-- [ ] UKF estimator (augmented health parameters, random walk)
-- [ ] Residual normalization + EWMA/CUSUM + sensor-vs-engine fault logic
-- [ ] Health indices per subsystem + risk levels
-- [ ] Key test + docs/figures/early_detection.png
+- [x] UKF estimator (augmented health parameters, random walk)
+- [x] Residual normalization + EWMA/CUSUM + sensor-vs-engine fault logic
+- [x] Health indices per subsystem + risk levels
+- [x] Key test + docs/figures/early_detection.png
 
 ## M6 — AI/ML layer
 - [ ] Feature extraction from residual windows
