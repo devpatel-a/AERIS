@@ -20,7 +20,8 @@ FUEL_LHV_J_PER_KG = 44.0e6  # avgas approx — replace with OEM data
 COMBUSTION_EFFICIENCY_NOMINAL = 0.95  # approx — replace with OEM data
 THERMAL_EFFICIENCY_NOMINAL = 0.40  # lumped MVEM effective efficiency, approx — replace with OEM data
 CYLINDER_HEAT_FRACTION = 0.22  # fraction of fuel energy conducted to cylinder walls, approx
-BASE_EGT_K_ABOVE_AMBIENT = 670.0  # approx — replace with OEM data
+BASE_EGT_K_ABOVE_AMBIENT = 860.0  # approx — replace with OEM data
+LOAD_REF_LOW_MAP_KPA = 40.0  # MAP treated as "no EGT load" floor, approx
 
 
 def ve_lookup(rpm: float, map_kpa: float, config: EngineConfig) -> float:
@@ -101,7 +102,16 @@ def compute_combustion(
     mechanical_power_w = total_thermal_power_w * THERMAL_EFFICIENCY_NOMINAL
     torque_nm = mechanical_power_w / max(omega_rad_s, 1.0)
 
-    load_fraction = map_pa / max(ambient_pressure_pa, 1.0)
+    # Load proxy for EGT: fraction of the way from idle MAP to the forced-induction
+    # ceiling (wastegate_max_map_kpa). Using map/ambient_pressure instead would
+    # spuriously grow with altitude, since a turbo maintains ~constant MAP while
+    # ambient pressure falls below critical altitude — this formulation stays
+    # bounded because both MAP and the reference ceiling are absolute values.
+    load_fraction = np.clip(
+        (map_kpa - LOAD_REF_LOW_MAP_KPA) / max(config.turbo.wastegate_max_map_kpa - LOAD_REF_LOW_MAP_KPA, 1.0),
+        0.0,
+        1.3,
+    )
     fuel_ratio = np.divide(
         fuel_per_cyl,
         max(float(np.mean(fuel_per_cyl_nominal)), 1e-9),

@@ -10,12 +10,12 @@ Trained on 3005 feature-window rows from 34 training missions; evaluated on 790 
 | alternator_degradation | 0 | 46 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
 | combustion_instability | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | cooling_degradation | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| healthy | 0 | 0 | 0 | 0 | 281 | 0 | 0 | 0 | 0 | 1 | 0 |
+| healthy | 0 | 0 | 0 | 0 | 282 | 0 | 0 | 0 | 0 | 0 | 0 |
 | injector_abnormality | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | lubrication_issue | 0 | 0 | 0 | 0 | 0 | 0 | 69 | 0 | 0 | 1 | 0 |
 | misfire | 0 | 0 | 0 | 0 | 0 | 58 | 0 | 0 | 0 | 0 | 0 |
-| overheating_trend | 0 | 0 | 0 | 24 | 7 | 0 | 0 | 0 | 63 | 0 | 0 |
-| sensor_fault | 0 | 0 | 0 | 0 | 230 | 9 | 0 | 0 | 0 | 0 | 0 |
+| overheating_trend | 0 | 0 | 0 | 13 | 4 | 0 | 0 | 0 | 77 | 0 | 0 |
+| sensor_fault | 0 | 0 | 0 | 0 | 227 | 12 | 0 | 0 | 0 | 0 | 0 |
 | turbo_degradation | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 ## Per-class precision / recall / F1
@@ -26,18 +26,18 @@ Trained on 3005 feature-window rows from 34 training missions; evaluated on 790 
 | alternator_degradation | 1.00 | 0.98 | 0.99 | 47 |
 | combustion_instability | 0.00 | 0.00 | 0.00 | 0 |
 | cooling_degradation | 0.00 | 0.00 | 0.00 | 0 |
-| healthy | 0.54 | 1.00 | 0.70 | 282 |
+| healthy | 0.55 | 1.00 | 0.71 | 282 |
 | injector_abnormality | 0.00 | 0.00 | 0.00 | 0 |
 | lubrication_issue | 1.00 | 0.99 | 0.99 | 70 |
 | misfire | 0.00 | 0.00 | 0.00 | 58 |
-| overheating_trend | 1.00 | 0.67 | 0.80 | 94 |
+| overheating_trend | 1.00 | 0.82 | 0.90 | 94 |
 | sensor_fault | 0.00 | 0.00 | 0.00 | 239 |
 | turbo_degradation | 0.00 | 0.00 | 0.00 | 0 |
 
 ## Anomaly detection
 
-- Mean score on healthy test windows: {'isolation_forest': 0.465585202750861, 'autoencoder': 0.33744388287285787}
-- Mean score on faulty test windows: {'isolation_forest': 0.5158840015672252, 'autoencoder': 0.9986270489988878}
+- Mean score on healthy test windows: {'isolation_forest': 0.46605325956121335, 'autoencoder': 0.3479331001761574}
+- Mean score on faulty test windows: {'isolation_forest': 0.5136907098293203, 'autoencoder': 0.9987190775727856}
 
 ## Detection lead time vs threshold alarm (cooling faults)
 
@@ -45,15 +45,15 @@ Trained on 3005 feature-window rows from 34 training missions; evaluated on 790 
 
 ## RUL (particle filter)
 
-- RMSE against known time-to-failure on run-to-failure samples: **26.56 engine-hours**.
+- RMSE against known time-to-failure on run-to-failure samples: **7.78 engine-hours**.
 
 ## SHAP explanations (sample test predictions)
 
-1. vibration_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; map_kpa_resid_mean raised the confidence
-2. oil_pressure_kpa_resid_mean raised the confidence; vibration_mean raised the confidence; vibration_rms_g_resid_mean raised the confidence
-3. oil_pressure_kpa_resid_mean raised the confidence; vibration_rms_g_resid_mean raised the confidence; oil_pressure_kpa_resid_std raised the confidence
-4. oil_pressure_kpa_resid_mean raised the confidence; oil_temp_k_resid_std raised the confidence; cht_1_k_resid_std raised the confidence
-5. oil_pressure_kpa_resid_mean raised the confidence; oil_temp_k_resid_std raised the confidence; cht_1_k_resid_std raised the confidence
+1. vibration_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; alternator_current_a_resid_mean lowered the confidence
+2. oil_pressure_kpa_resid_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; vibration_rms_g_resid_mean raised the confidence
+3. oil_pressure_kpa_resid_mean raised the confidence; vibration_rms_g_resid_mean raised the confidence; rpm_resid_std raised the confidence
+4. oil_pressure_kpa_resid_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; alternator_current_a_resid_mean raised the confidence
+5. oil_pressure_kpa_resid_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; oil_temp_k_resid_std raised the confidence
 
 ## Edge (ONNX) model benchmark
 

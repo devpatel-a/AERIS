@@ -28,6 +28,15 @@ class FaultInjector:
         self._sensor_specs = [s for s in self.specs if s.fault_type in SENSOR_FAULT_TYPES]
         self._state: dict[int, dict] = {id(s): {} for s in self._engine_specs}
 
+    def add_spec(self, spec: FaultSpec) -> None:
+        """Add a fault spec to a running injector (e.g. live demo fault injection)."""
+        self.specs.append(spec)
+        if spec.fault_type in ENGINE_FAULT_TYPES:
+            self._engine_specs.append(spec)
+            self._state[id(spec)] = {}
+        elif spec.fault_type in SENSOR_FAULT_TYPES:
+            self._sensor_specs.append(spec)
+
     def step_callback(self, t: float, model: EngineModel) -> None:
         """Apply all engine-level faults' effect on `model` at time t."""
         for spec in self._engine_specs:

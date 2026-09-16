@@ -239,4 +239,60 @@ than hand-tune the demo to hide this, `ML_RESULTS.md` reports it plainly
 under "Known limitations" and names `--size medium`/`large` as the fix —
 consistent with "choose the simpler working approach and record it."
 
+## D23 — Two M1 physics bugs found and fixed via mission go/no-go testing (M7)
+Building the Monte Carlo go/no-go check surfaced two latent M1 calibration
+bugs that the M1 unit tests hadn't exercised:
+1. **EGT vs altitude.** The original `load_fraction = map_pa / ambient_pressure_pa`
+   proxy for combustion load grows with altitude even at constant fueling,
+   because a turbo holds MAP ~constant while ambient pressure falls below
+   critical altitude — this spuriously pushed EGT far past its limit on
+   any climb. Fixed by normalizing MAP against the fixed
+   `wastegate_max_map_kpa` ceiling instead of the (altitude-varying)
+   ambient pressure (`aerotwin/physics/combustion.py`); `BASE_EGT_K_ABOVE_AMBIENT`
+   retuned 670 -> 860 to keep the WOT-sea-level calibration point (~1148 K)
+   unchanged.
+2. **Oil pressure at idle.** `oil_pressure_kpa` scaled purely linearly with
+   RPM from zero, so idle RPM produced pressure below `limits.min_oil_pressure_kpa`
+   on every mission's taxi segment, healthy or not. Real oil pumps are
+   relief-valve regulated (quick rise off idle, then a plateau); the
+   formula now floors at 0.5x the reference pressure
+   (`aerotwin/physics/lubrication.py`).
+
+Both are exactly the kind of bug integration testing at the mission level
+is supposed to catch that isolated unit tests miss — recorded here per the
+"if you get stuck / find an issue, note it and keep going" rule. The full
+M1 test suite was re-run after both fixes and still passes.
+
+## D24 — LIVE mode in the API/demo is simulated telemetry, not real CAN
+`aerotwin.api.state.Session` runs a hidden "plant" `EngineModel` (ground
+truth, degrades under injected faults) alongside the `DigitalTwin`, feeding
+the twin only `inputs` and comparing against plant-plus-sensor-noise
+`measured` values — the same technique `test_early_detection.py` (M5)
+validates. This is what "LIVE" means in the API/dashboard demo: it exactly
+matches the LIVE-mode contract (inputs into the model, compare predicted
+vs measured) without requiring a live SocketCAN link for the demo to run
+anywhere. The CAN publisher/receiver/DataSource stack (M4) remains
+independently built and tested for a real deployment; `CanDataSource`
+already exists as a drop-in replacement for the plant/sensor-noise path.
+
+## D25 — One global session, async endpoints where they touch it
+The API holds exactly one active `Session` at a time (starting a new one
+stops the old one) — adequate for a single-operator GCS demo, not a
+multi-tenant service. Endpoints that create or cancel the background
+physics task (`/api/live/start`, `/api/live/stop`, `/api/simulate/start`)
+are `async def` so they run on the actual event-loop thread where
+`asyncio.create_task`/`Task.cancel()` are valid; endpoints that only read
+state stay plain `def` (FastAPI runs those in a worker thread, which is
+fine for read-only access). The SQLite connection is opened with
+`check_same_thread=False` for the same reason — access is effectively
+serialized by there being one session, not genuinely concurrent.
+
+## D26 — Mission risk checks run on a bounded time window
+`run_mission_go_no_go` caps each Monte Carlo sample to `max_duration_s`
+(default 45 minutes) via `MissionRunner.run(max_duration_s=...)` regardless
+of the requested mission's nominal length — an 18-hour endurance mission's
+worst-case thermal margins are already visible within its climb/early
+-cruise window, and running 10+ full-length Monte Carlo samples through the
+API within an interactive request would be far too slow.
+
 (Further decisions appended below as milestones progress.)

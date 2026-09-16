@@ -45,7 +45,10 @@ def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     """Open (creating if needed) the AeroTwin metadata SQLite database."""
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path))
+    # check_same_thread=False: the API's sync endpoints run in FastAPI's worker
+    # threadpool while async endpoints run on the event loop thread; access here
+    # is effectively serialized (one active session at a time), so this is safe.
+    conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     return conn

@@ -175,14 +175,17 @@ class MissionRunner:
         self,
         log_interval_s: float = 1.0,
         step_callback: Callable[[float, EngineModel], None] | None = None,
+        max_duration_s: float | None = None,
     ) -> pd.DataFrame:
         """Run the full mission and return a per-log-tick DataFrame.
 
         `step_callback(t, model)` is invoked after each raw physics step,
         before logging — this is the hook faults (M3) use to mutate
         `model.misfire_mask` / `model.health` / etc. as a function of time.
+        `max_duration_s` truncates a long mission to a bounded compute
+        budget (e.g. for interactive go/no-go checks on multi-hour missions).
         """
-        total_s = self.mission.total_duration_s
+        total_s = min(self.mission.total_duration_s, max_duration_s or float("inf"))
         n_steps = int(round(total_s / self.dt))
         log_every = max(1, int(round(log_interval_s / self.dt)))
 

@@ -59,12 +59,12 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] scripts/train_all.py
 
 ## M7 — Diagnostics, mission risk, API
-- [ ] Diagnosis object + alert de-dup/hysteresis
-- [ ] Mission go/no-go with Monte Carlo
-- [ ] FastAPI endpoints (WS /ws/live, REST engines/missions/live/faults/
+- [x] Diagnosis object + alert de-dup/hysteresis
+- [x] Mission go/no-go with Monte Carlo
+- [x] FastAPI endpoints (WS /ws/live, REST engines/missions/live/faults/
       replay/health/RUL/advisories/mission-risk/report)
-- [ ] Token auth + CORS + HMAC telemetry signing
-- [ ] Tests: TestClient
+- [x] Token auth + CORS + HMAC telemetry signing
+- [x] Tests: TestClient
 
 ## M8 — Dashboard
 - [ ] React/Vite/TS/Tailwind/ECharts app, dark GCS theme
