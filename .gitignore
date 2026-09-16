@@ -37,3 +37,4 @@ npm-debug.log*
 
 # venv used for this build
 .venv/
+dashboard/tsconfig.tsbuildinfo
