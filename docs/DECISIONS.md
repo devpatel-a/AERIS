@@ -201,4 +201,42 @@ flagged `"engine"` (common-mode). This is the M5 "core rule" analytical
 redundancy check, kept to the two grouped channel families that actually
 have per-cylinder redundancy in this engine.
 
+## D20 — ML training uses a cheap nominal-health residual, not per-sample UKF (M6)
+Running the full 17ms/step UKF (D17) across every dataset sample for
+feature engineering would take hours even on the small dataset (many
+thousands of 1Hz updates). Since `nominal_residual_pass` only needs a
+*consistent* comparison signal (not a corrected health estimate) to expose
+fault signatures to the classifier, M6 instead re-simulates each sample's
+logged inputs through a single nominal-health `EngineModel` at the sample's
+own 1 Hz logging cadence and takes `measured - nominal_expected` as the
+residual. This is cheap (one extra physics pass per sample, same row
+count) and is exactly the "never compare the model against its own inputs"
+rule applied to offline training data. The already-built, already-tested
+UKF (M5) remains what actually drives health estimation in LIVE/REPLAY.
+
+## D21 — Windowed labeling, RUL ground truth, and the "sensor_fault" class
+Features are built as sliding 30s windows (15s stride) over each sample,
+labeled `"healthy"` unless the window's mean injected-fault severity
+exceeds 0.05 — so pre-onset windows of an otherwise-faulty run are
+correctly labeled healthy instead of leaking the sample-level label onto
+healthy segments. Per the spec's explicit "(including 'healthy' and
+'sensor_fault' classes)" phrasing, all 4 sensor-fault types collapse into
+one `sensor_fault` class (`collapse_fault_class`) — telling *that* a
+channel is misbehaving matters more than which drift/stuck/noise/dropout
+mode caused it. RUL evaluation uses the dataset's own ground-truth health
+parameters (not a live UKF) to build the health-index trajectory fed to
+the particle filter, since `run_to_failure` samples are constructed to
+reach severity=1.0 exactly at the log's last row — giving a known true
+time-to-failure to RMSE against.
+
+## D22 — Small default dataset gives an honest, imperfect ML_RESULTS.md
+`scripts/train_all.py` runs end-to-end against the default `--size small`
+(45-sample) dataset in under 2 minutes. With only ~2-4 samples per fault
+class, some classes land zero rows in the 25%-by-mission test split and
+the classifier under-performs on visually-similar pairs (`misfire` vs
+`injector_abnormality`, and the 4-way-collapsed `sensor_fault`). Rather
+than hand-tune the demo to hide this, `ML_RESULTS.md` reports it plainly
+under "Known limitations" and names `--size medium`/`large` as the fix —
+consistent with "choose the simpler working approach and record it."
+
 (Further decisions appended below as milestones progress.)

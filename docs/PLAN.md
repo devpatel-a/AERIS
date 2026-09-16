@@ -49,14 +49,14 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] Key test + docs/figures/early_detection.png
 
 ## M6 — AI/ML layer
-- [ ] Feature extraction from residual windows
-- [ ] Anomaly detection: IsolationForest + autoencoder
-- [ ] Fault classifier: XGBoost + SHAP
-- [ ] RUL: exponential fit + particle filter
-- [ ] Trends: efficiency, BSFC, CHT margin
-- [ ] Edge model: ONNX export + benchmark
-- [ ] docs/ML_RESULTS.md
-- [ ] scripts/train_all.py
+- [x] Feature extraction from residual windows
+- [x] Anomaly detection: IsolationForest + autoencoder
+- [x] Fault classifier: XGBoost + SHAP
+- [x] RUL: exponential fit + particle filter
+- [x] Trends: efficiency, BSFC, CHT margin
+- [x] Edge model: ONNX export + benchmark
+- [x] docs/ML_RESULTS.md
+- [x] scripts/train_all.py
 
 ## M7 — Diagnostics, mission risk, API
 - [ ] Diagnosis object + alert de-dup/hysteresis
