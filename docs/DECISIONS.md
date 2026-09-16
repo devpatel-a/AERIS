@@ -93,4 +93,43 @@ single-digit minutes per 18h mission, which is why M3's dataset generator
 biases toward shorter missions and uses multiprocessing across mission
 workers to hit its 10-minute default budget.
 
+## D10 — Engine faults act on health/hooks, sensor faults act on logged columns (M3)
+Engine-level faults (`aerotwin.faults.engine_faults`) mutate the model's
+health-parameter vector or its fault-injection attributes
+(`misfire_mask`, `vibration_imbalance_severity`, `combustion_efficiency_override`)
+once per physics step via `FaultInjector.step_callback`, so their effect
+propagates through the real physics. Sensor faults (drift/stuck/noise/
+dropout) instead post-process the already-logged `measured_<channel>`
+columns after the mission run completes — they perturb *what a sensor
+reports*, never the underlying physics — which is exactly the asymmetry
+M5's analytical-redundancy logic needs to tell the two apart later.
+
+## D11 — Baseline "sensor realism" vs "sensor faults" are separate layers
+`aerotwin.faults.sensor_model.apply_sensor_model` adds noise + quantization
++ a coarse sample-rate hold to *every* known telemetry channel on *every*
+run (healthy or faulty) — this is the generic measurement layer the spec
+asks for. `aerotwin.faults.sensor_faults` then perturbs one target channel
+further, only when a sensor fault is actually injected. Both write into the
+same `measured_<channel>` column so downstream consumers never need to know
+which layer touched it.
+
+## D12 — Dataset generation uses synthetic short missions, not the 4 named ones
+`scripts/generate_dataset.py` builds randomized 5-40 minute missions
+in-memory (3-6 segments with random altitude/airspeed/throttle) rather than
+running the 4 curated mission YAMLs end-to-end — the latter include an
+18-hour endurance profile that would dominate the generation budget. The 4
+named missions remain the ones used for the Mission Planner / go-no-go UX
+and the M10 demo. Default `--size small` (45 samples) generates in ~90s on
+4 cores, comfortably inside the 10-minute budget.
+
+## D13 — One fault per sample, ~30% healthy, ~15% run-to-failure
+Each dataset sample carries at most one injected fault (engine or sensor),
+matching how the M6 classifier's label space is defined (one class per
+fault type + "healthy"). ~30% of samples are healthy baselines. Among
+faulty engine-fault samples, ~15% are "run-to-failure" trajectories (a ramp
+profile from onset=0 reaching severity=1.0 exactly at the run's end) for
+the M6 RUL model; the rest step to a fixed mid-severity partway through the
+run, which is more representative of a detectable-but-not-yet-critical
+fault window.
+
 (Further decisions appended below as milestones progress.)

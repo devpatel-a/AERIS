@@ -24,13 +24,13 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] CLI: scripts/run_mission.py
 
 ## M3 — Fault injection and synthetic dataset
-- [ ] FaultInjector (misfire, injector_abnormality, cooling_degradation,
+- [x] FaultInjector (misfire, injector_abnormality, cooling_degradation,
       lubrication_issue, sensor faults, combustion_instability,
       overheating_trend, abnormal_vibration, alternator_degradation,
       turbo_degradation)
-- [ ] Sensor noise/quantization/sample-rate layer
-- [ ] scripts/generate_dataset.py (multiprocessing, manifest, --size)
-- [ ] Tests: each fault signature
+- [x] Sensor noise/quantization/sample-rate layer
+- [x] scripts/generate_dataset.py (multiprocessing, manifest, --size)
+- [x] Tests: each fault signature
 
 ## M4 — CAN acquisition, processing, storage
 - [ ] configs/can/aerotwin.dbc
