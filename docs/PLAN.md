@@ -7,15 +7,15 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] docs/ARCHITECTURE.md with Mermaid 11-layer diagram
 
 ## M1 — Engine definition and MVEM physics
-- [ ] configs/engines/rotax914_like.yaml
-- [ ] pydantic EngineConfig schema + registry
-- [ ] aerotwin/physics/* MVEM components (atmosphere, intake, fuel,
+- [x] configs/engines/rotax914_like.yaml
+- [x] pydantic EngineConfig schema + registry
+- [x] aerotwin/physics/* MVEM components (atmosphere, intake, fuel,
       combustion, cooling, lubrication, rotational dynamics, electrical,
       vibration)
-- [ ] EngineModel (RK4, 20 Hz, state vs health vector separated)
-- [ ] Tests: turbo/altitude, CHT vs airspeed, RPM steady state, cooling
+- [x] EngineModel (RK4, 20 Hz, state vs health vector separated)
+- [x] Tests: turbo/altitude, CHT vs airspeed, RPM steady state, cooling
       degradation, misfire vibration, speed benchmark (>=50x real time)
-- [ ] Sanity plots in docs/figures/
+- [x] Sanity plots in docs/figures/
 
 ## M2 — Missions and environment
 - [ ] Mission YAML schema + 4 missions (isr_18h_endurance, high_altitude_6km,
