@@ -34,3 +34,6 @@ npm-debug.log*
 # Env
 .env
 .env.*
+
+# venv used for this build
+.venv/
