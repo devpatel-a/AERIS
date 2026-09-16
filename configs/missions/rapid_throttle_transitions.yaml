@@ -1,0 +1,65 @@
+# Rapid throttle-transition stress test: repeated low/high throttle cycles
+# to exercise turbo spool, manifold-filling and thermal-lag dynamics.
+mission_id: rapid_throttle_transitions
+display_name: "Rapid throttle transition stress test"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: 0.0
+
+segments:
+  - name: taxi
+    duration_s: 120
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15
+  - name: takeoff
+    duration_s: 45
+    target_altitude_m: 300.0
+    target_airspeed_mps: 32.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 300
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 40.0
+    throttle: 0.85
+  - name: cycle_low_1
+    duration_s: 60
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 40.0
+    throttle: 0.25
+  - name: cycle_high_1
+    duration_s: 60
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 42.0
+    throttle: 0.98
+  - name: cycle_low_2
+    duration_s: 45
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 38.0
+    throttle: 0.2
+  - name: cycle_high_2
+    duration_s: 45
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 42.0
+    throttle: 0.95
+  - name: cycle_low_3
+    duration_s: 30
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 38.0
+    throttle: 0.2
+  - name: cycle_high_3
+    duration_s: 30
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 42.0
+    throttle: 1.0
+  - name: descent
+    duration_s: 300
+    target_altitude_m: 100.0
+    target_airspeed_mps: 32.0
+    throttle: 0.3
+  - name: landing
+    duration_s: 180
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15

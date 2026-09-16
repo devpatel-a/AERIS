@@ -64,4 +64,33 @@ within the configured `limits` at rated power, and all M1 tests pass. This
 is a first-order calibration for demonstration purposes, not an OEM match —
 all tuned constants keep their `# approx — replace with OEM data` tags.
 
+## D7 — Mission profile interpolation (M2)
+Each segment's altitude/airspeed/throttle targets are reached by linear ramp
+from the value at the end of the previous segment over that segment's
+`duration_s`. This keeps mission YAMLs simple (one target triple per phase)
+while avoiding input discontinuities that would otherwise create
+unphysical instantaneous jumps at segment boundaries (e.g. throttle
+snapping 0.15 -> 0.95 in one timestep). `isa_deviation_k` may be overridden
+per-segment (else falls back to the mission's `environment.base_isa_deviation_k`)
+to support time-varying weather, though none of the four initial missions
+need per-segment overrides yet.
+
+## D8 — MissionRunner fault hook
+`MissionRunner.run()` takes an optional `step_callback(t, model)` invoked
+every raw physics step (before logging). This is the only integration point
+the M3 `FaultInjector` needs — it mutates `model.misfire_mask`,
+`model.health`, etc. directly — so `aerotwin.simulation.mission` does not
+need to import or know about `aerotwin.faults` at all.
+
+## D9 — `--speed` is a pacing knob, not a physics shortcut
+`scripts/run_mission.py --speed` is reserved for the M4 CAN publisher's
+real-time playback pacing (sleeping between frames to simulate a given
+speed-up over wall-clock flight time). It does not change the number of
+20 Hz physics steps computed — a full 18h mission always integrates
+~1.3M RK4 steps. Offline dataset generation always runs at full compute
+speed (no sleep); at the M1-benchmarked speedup this takes low
+single-digit minutes per 18h mission, which is why M3's dataset generator
+biases toward shorter missions and uses multiprocessing across mission
+workers to hit its 10-minute default budget.
+
 (Further decisions appended below as milestones progress.)

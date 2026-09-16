@@ -18,10 +18,10 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] Sanity plots in docs/figures/
 
 ## M2 — Missions and environment
-- [ ] Mission YAML schema + 4 missions (isr_18h_endurance, high_altitude_6km,
+- [x] Mission YAML schema + 4 missions (isr_18h_endurance, high_altitude_6km,
       hot_weather_45c, rapid_throttle_transitions)
-- [ ] MissionRunner with accelerated time, Parquet output
-- [ ] CLI: scripts/run_mission.py
+- [x] MissionRunner with accelerated time, Parquet output
+- [x] CLI: scripts/run_mission.py
 
 ## M3 — Fault injection and synthetic dataset
 - [ ] FaultInjector (misfire, injector_abnormality, cooling_degradation,

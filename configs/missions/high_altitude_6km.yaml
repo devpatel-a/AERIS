@@ -1,0 +1,40 @@
+# High-altitude cruise above the turbo's critical altitude, to exercise
+# the power-loss-above-critical-altitude behaviour of the digital twin.
+mission_id: high_altitude_6km
+display_name: "High-altitude cruise at 6 km"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: 0.0
+
+segments:
+  - name: taxi
+    duration_s: 180
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.12
+  - name: takeoff
+    duration_s: 60
+    target_altitude_m: 80.0
+    target_airspeed_mps: 30.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 1800          # 30 min
+    target_altitude_m: 6000.0
+    target_airspeed_mps: 48.0
+    throttle: 0.95
+  - name: cruise_high
+    duration_s: 7200          # 2 h
+    target_altitude_m: 6000.0
+    target_airspeed_mps: 50.0
+    throttle: 0.9
+  - name: descent
+    duration_s: 900
+    target_altitude_m: 150.0
+    target_airspeed_mps: 35.0
+    throttle: 0.25
+  - name: landing
+    duration_s: 240
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15

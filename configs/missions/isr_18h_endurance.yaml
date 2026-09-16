@@ -1,0 +1,46 @@
+# 18-hour ISR (Intelligence, Surveillance, Reconnaissance) endurance mission.
+# Long cruise + loiter at moderate altitude, well within turbo critical
+# altitude. This is the backbone mission for the M10 demo storyline.
+mission_id: isr_18h_endurance
+display_name: "18h ISR endurance patrol"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: 0.0
+
+segments:
+  - name: taxi
+    duration_s: 300          # 5 min
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.12
+  - name: takeoff
+    duration_s: 60
+    target_altitude_m: 60.0
+    target_airspeed_mps: 28.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 900           # 15 min
+    target_altitude_m: 3000.0
+    target_airspeed_mps: 42.0
+    throttle: 0.85
+  - name: cruise
+    duration_s: 28800         # 8 h
+    target_altitude_m: 3000.0
+    target_airspeed_mps: 45.0
+    throttle: 0.55
+  - name: loiter
+    duration_s: 32400         # 9 h
+    target_altitude_m: 3000.0
+    target_airspeed_mps: 33.0
+    throttle: 0.42
+  - name: descent
+    duration_s: 1200          # 20 min
+    target_altitude_m: 200.0
+    target_airspeed_mps: 35.0
+    throttle: 0.28
+  - name: landing
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15

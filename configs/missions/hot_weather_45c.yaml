@@ -1,0 +1,45 @@
+# Hot-weather operation (ISA +30K -> ~45C at sea level) at low-moderate
+# altitude, stressing cooling margin. Used by the M10 demo's NO-GO check.
+mission_id: hot_weather_45c
+display_name: "Hot weather (45C) low-altitude patrol"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: 30.0   # 15C ISA std -> 45C actual
+
+segments:
+  - name: taxi
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15
+  - name: takeoff
+    duration_s: 60
+    target_altitude_m: 50.0
+    target_airspeed_mps: 27.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 600
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 38.0
+    throttle: 0.8
+  - name: cruise
+    duration_s: 10800        # 3 h
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 40.0
+    throttle: 0.6
+  - name: loiter_slow
+    duration_s: 3600         # 1 h, low airspeed stresses cooling further
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 20.0
+    throttle: 0.5
+  - name: descent
+    duration_s: 600
+    target_altitude_m: 100.0
+    target_airspeed_mps: 32.0
+    throttle: 0.3
+  - name: landing
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15
