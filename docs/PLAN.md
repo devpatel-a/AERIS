@@ -82,4 +82,4 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] scripts/demo.py full storyline with timestamps
 - [x] README.md, ARCHITECTURE.md final, USER_GUIDE.md,
       DEPLOYMENT_ROADMAP.md
-- [ ] Fresh-clone check: make install && make dataset && make train && make demo
+- [x] Fresh-clone check: make install && make dataset && make train && make demo

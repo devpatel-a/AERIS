@@ -345,4 +345,29 @@ through the real browser UI — the Dockerfiles wrap that exact same
 gap, but it is an untested step and worth a real `docker compose up`
 before relying on it operationally.
 
+## D30 — Fresh-clone verification passed (M10 final check)
+Cloned the repo into a scratch directory, created a new venv, and ran
+`make install && make dataset && make train && make demo` with no manual
+intervention beyond the venv itself (see D-note below on why a venv is
+needed at all). It reproduced the exact same demo storyline and timings
+as the working-copy runs throughout this log: CAN mechanism check, twin
+detection at t≈12.1min (WARNING), CHT hard-limit alarm at t≈17.4min
+(341s after detection), correct `cooling_degradation` classification with
+SHAP factors, RUL 2.2h mean, maintenance advisory, hot-weather NO-GO
+verdict, and a saved mission + PDF report. The only gap found was
+`onnxscript` missing from the `ml` extra (torch's ONNX exporter needs it
+at import time) — fixed in `pyproject.toml` and verified by re-running the
+fresh clone against the fix before it passed.
+
+Note on the venv requirement: `filterpy`'s legacy `setup.py` build fails
+under this environment's system Python because of a Debian/Ubuntu
+distutils patch incompatibility (`AttributeError: install_layout`) when
+building in an isolated pip build environment against the system
+`dist-packages`; a plain `python3 -m venv` sidesteps it entirely (a clean
+venv's distutils isn't patched the same way). `make install` runs
+`python3 -m pip install -e ".[dev,ml]"` as documented; on a system where
+this build issue doesn't reproduce, a venv isn't strictly required, but
+it's the recommended, safe default and is what every verification run in
+this log used.
+
 (Further decisions appended below as milestones progress.)

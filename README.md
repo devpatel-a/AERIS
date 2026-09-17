@@ -23,6 +23,7 @@ proposition of the whole system.*
 ## Quickstart
 
 ```bash
+python3 -m venv .venv && source .venv/bin/activate   # recommended — see note below
 make install    # pip install -e .[dev,ml] + dashboard npm install
 make dataset    # generate the small synthetic training dataset (~90s)
 make train      # train anomaly/classifier/RUL/edge models, write docs/ML_RESULTS.md
@@ -30,6 +31,11 @@ make demo       # run the full M10 demo storyline end to end (~2 min)
 make test       # pytest (76+ tests)
 make lint       # ruff
 ```
+
+> A venv is recommended because `filterpy`'s legacy build can fail against
+> some systems' patched Python `distutils` when installed outside one (see
+> `docs/DECISIONS.md` D30). This whole sequence was verified end to end
+> from a fresh clone with exactly these commands.
 
 To run the backend + dashboard interactively:
 
