@@ -14,8 +14,8 @@ Trained on 3005 feature-window rows from 34 training missions; evaluated on 790 
 | injector_abnormality | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | lubrication_issue | 0 | 0 | 0 | 0 | 0 | 0 | 69 | 0 | 0 | 1 | 0 |
 | misfire | 0 | 0 | 0 | 0 | 0 | 58 | 0 | 0 | 0 | 0 | 0 |
-| overheating_trend | 0 | 0 | 0 | 13 | 4 | 0 | 0 | 0 | 77 | 0 | 0 |
-| sensor_fault | 0 | 0 | 0 | 0 | 227 | 12 | 0 | 0 | 0 | 0 | 0 |
+| overheating_trend | 0 | 0 | 0 | 16 | 5 | 0 | 0 | 0 | 73 | 0 | 0 |
+| sensor_fault | 0 | 0 | 0 | 0 | 223 | 16 | 0 | 0 | 0 | 0 | 0 |
 | turbo_degradation | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 ## Per-class precision / recall / F1
@@ -30,14 +30,14 @@ Trained on 3005 feature-window rows from 34 training missions; evaluated on 790 
 | injector_abnormality | 0.00 | 0.00 | 0.00 | 0 |
 | lubrication_issue | 1.00 | 0.99 | 0.99 | 70 |
 | misfire | 0.00 | 0.00 | 0.00 | 58 |
-| overheating_trend | 1.00 | 0.82 | 0.90 | 94 |
+| overheating_trend | 1.00 | 0.78 | 0.87 | 94 |
 | sensor_fault | 0.00 | 0.00 | 0.00 | 239 |
 | turbo_degradation | 0.00 | 0.00 | 0.00 | 0 |
 
 ## Anomaly detection
 
-- Mean score on healthy test windows: {'isolation_forest': 0.46605325956121335, 'autoencoder': 0.3479331001761574}
-- Mean score on faulty test windows: {'isolation_forest': 0.5136907098293203, 'autoencoder': 0.9987190775727856}
+- Mean score on healthy test windows: {'isolation_forest': 0.46605325956121335, 'autoencoder': 0.34742721786004604}
+- Mean score on faulty test windows: {'isolation_forest': 0.5136907098293203, 'autoencoder': 0.998718952068572}
 
 ## Detection lead time vs threshold alarm (cooling faults)
 
@@ -49,15 +49,15 @@ Trained on 3005 feature-window rows from 34 training missions; evaluated on 790 
 
 ## SHAP explanations (sample test predictions)
 
-1. vibration_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; alternator_current_a_resid_mean lowered the confidence
-2. oil_pressure_kpa_resid_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; vibration_rms_g_resid_mean raised the confidence
-3. oil_pressure_kpa_resid_mean raised the confidence; vibration_rms_g_resid_mean raised the confidence; rpm_resid_std raised the confidence
-4. oil_pressure_kpa_resid_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; alternator_current_a_resid_mean raised the confidence
+1. vibration_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; map_kpa_resid_mean raised the confidence
+2. oil_pressure_kpa_resid_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; vibration_mean raised the confidence
+3. oil_pressure_kpa_resid_mean raised the confidence; oil_temp_k_resid_std raised the confidence; vibration_rms_g_resid_mean raised the confidence
+4. oil_pressure_kpa_resid_std lowered the confidence; oil_pressure_kpa_resid_mean raised the confidence; alternator_current_a_resid_mean raised the confidence
 5. oil_pressure_kpa_resid_mean raised the confidence; oil_pressure_kpa_resid_std lowered the confidence; oil_temp_k_resid_std raised the confidence
 
 ## Edge (ONNX) model benchmark
 
-- Model size: 2.1 KB
+- Model size: 2.0 KB
 - Mean latency: 0.006 ms; p95: 0.007 ms
 
 ## Known limitations

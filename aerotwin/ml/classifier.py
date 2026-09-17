@@ -52,16 +52,17 @@ class FaultClassifier:
         return explanations
 
 
-def train_classifier(X: np.ndarray, y: list[str], feature_cols: list[str], seed: int = 0) -> FaultClassifier:
-    """Train the multi-class fault classifier on windowed feature rows.
+def train_classifier(
+    X: np.ndarray,
+    y: list[str],
+    feature_cols: list[str],
+    seed: int = 0,
+) -> FaultClassifier:
+    """Train the multi-class fault classifier."""
 
-    The label encoder is fit on whichever classes are actually present in
-    `y` (not the full `CLASS_NAMES` space) — XGBoost's sklearn wrapper
-    requires `y`'s encoded values to exactly match `classes_`, and a class
-    absent from training data has nothing to learn anyway.
-    """
     encoder = LabelEncoder().fit(sorted(set(y)))
     y_enc = encoder.transform(y)
+
     model = xgb.XGBClassifier(
         n_estimators=200,
         max_depth=4,
@@ -70,6 +71,14 @@ def train_classifier(X: np.ndarray, y: list[str], feature_cols: list[str], seed:
         num_class=len(encoder.classes_),
         random_state=seed,
         eval_metric="mlogloss",
+        n_jobs=1,
+        tree_method="hist",
     )
+
     model.fit(X, y_enc)
-    return FaultClassifier(model=model, encoder=encoder, feature_cols=feature_cols)
+
+    return FaultClassifier(
+        model=model,
+        encoder=encoder,
+        feature_cols=feature_cols,
+    )
