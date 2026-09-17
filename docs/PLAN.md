@@ -79,7 +79,7 @@ Legend: [ ] pending  [x] done  [~] partial/simplified (see DECISIONS.md)
 - [x] docker-compose (backend + dashboard)
 
 ## M10 — Demo and documentation
-- [ ] scripts/demo.py full storyline with timestamps
-- [ ] README.md, ARCHITECTURE.md final, USER_GUIDE.md,
+- [x] scripts/demo.py full storyline with timestamps
+- [x] README.md, ARCHITECTURE.md final, USER_GUIDE.md,
       DEPLOYMENT_ROADMAP.md
 - [ ] Fresh-clone check: make install && make dataset && make train && make demo
