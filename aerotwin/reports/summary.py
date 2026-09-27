@@ -33,6 +33,7 @@ LIMIT_LABELS = {
 }
 
 RISK_ORDER = ["NORMAL", "WATCH", "WARNING", "CRITICAL"]
+TRANSIENT_SEGMENTS = {"taxi", "takeoff", "climb", "descent", "landing", "touch_and_go"}
 
 
 @dataclass
@@ -56,6 +57,15 @@ class MissionSummary:
     rul_hours_end: float | None = None
     faults_observed: list[str] = field(default_factory=list)
     total_alarms: int = 0
+    # Trend KPIs (Trends & Fleet) and replay extremes.
+    bsfc_g_per_kwh: float | None = None  # mean brake-specific fuel consumption at cruise power
+    cht_margin_k: float | None = None  # max-CHT limit minus the flight's peak CHT
+    oil_consumption_l_per_10h: float | None = None
+    time_above_caution_s: float = 0.0  # any cylinder above the CHT caution band
+    peak_cht: dict[str, float | int | None] = field(default_factory=dict)  # {value_k, cylinder, t_s}
+    peak_egt: dict[str, float | int | None] = field(default_factory=dict)  # {value_k, cylinder, t_s}
+    peak_map: dict[str, float | str | None] = field(default_factory=dict)  # {value_kpa, t_s, segment}
+    max_vibration_g: float | None = None
 
 
 def _time_above_limit_s(df: pd.DataFrame, cols: list[str], limit: float) -> float:
@@ -119,7 +129,10 @@ def compute_post_flight_summary(df: pd.DataFrame, config: EngineConfig) -> Missi
     subsystem_index_end = {c.replace("subsystem_", ""): float(df[c].iloc[-1]) for c in subsystem_cols} if n else {}
     rul_hours_end = float(df["rul_mean_hours"].iloc[-1]) if "rul_mean_hours" in df.columns and n else None
 
+    extras = _trend_and_extremes(df, config)
+
     return MissionSummary(
+        **extras,
         n_samples=n,
         duration_hours=duration_hours,
         peak_values=peak_values,
@@ -138,3 +151,46 @@ def compute_post_flight_summary(df: pd.DataFrame, config: EngineConfig) -> Missi
         faults_observed=faults_observed,
         total_alarms=total_alarms,
     )
+
+
+def _peak(df: pd.DataFrame, cols: list[str]) -> dict[str, float | int | None]:
+    present = [c for c in cols if c in df.columns]
+    if not present or df.empty:
+        return {}
+    stacked = df[present]
+    row = int(stacked.max(axis=1).values.argmax())
+    col = str(stacked.iloc[row].idxmax())
+    return {"value_k": float(stacked.iloc[row][col]), "cylinder": int(col.split("_")[1]), "t_s": float(df["t_s"].iloc[row])}
+
+
+def _trend_and_extremes(df: pd.DataFrame, config: EngineConfig) -> dict:
+    """BSFC, CHT margin, oil burn, caution-band time and located peaks for one flight."""
+    out: dict = {}
+    if df.empty:
+        return out
+    if {"fuel_flow_kg_s", "power_w"} <= set(df.columns):
+        cruise = df[df["power_w"] > 0.3 * config.rating.rated_power_w]
+        if len(cruise):
+            out["bsfc_g_per_kwh"] = float((cruise["fuel_flow_kg_s"] * 3.6e9 / cruise["power_w"]).median())
+    present_cht = [c for c in CYL_TEMP_COLS if c in df.columns]
+    if present_cht:
+        # Engine-condition trend monitoring uses stabilized cruise, not climb transients.
+        stable = df[~df["segment"].isin(TRANSIENT_SEGMENTS)] if "segment" in df.columns else df
+        stable = stable if len(stable) else df
+        out["cht_margin_k"] = float(config.limits.max_cht_k - stable[present_cht].max(axis=1).max())
+        if config.limits.cht_caution_k is not None:
+            out["time_above_caution_s"] = _time_above_limit_s(df, present_cht, config.limits.cht_caution_k)
+    if "oil_consumption_l_h" in df.columns:
+        out["oil_consumption_l_per_10h"] = float(df["oil_consumption_l_h"].mean() * 10.0)
+    out["peak_cht"] = _peak(df, CYL_TEMP_COLS)
+    out["peak_egt"] = _peak(df, CYL_EGT_COLS)
+    if "map_kpa" in df.columns:
+        i = int(df["map_kpa"].values.argmax())
+        out["peak_map"] = {
+            "value_kpa": float(df["map_kpa"].iloc[i]),
+            "t_s": float(df["t_s"].iloc[i]),
+            "segment": str(df["segment"].iloc[i]) if "segment" in df.columns else None,
+        }
+    if "vibration_rms_g" in df.columns:
+        out["max_vibration_g"] = float(df["vibration_rms_g"].max())
+    return out

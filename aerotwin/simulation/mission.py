@@ -41,6 +41,7 @@ class EnvironmentConfig(BaseModel):
     """Mission-wide environment baseline; segments may override `isa_deviation_k`."""
 
     base_isa_deviation_k: float = 0.0
+    headwind_mps: float = 0.0  # mean headwind on the ingress/egress legs (planning display only)
 
 
 class MissionConfig(BaseModel):
@@ -49,6 +50,9 @@ class MissionConfig(BaseModel):
     mission_id: str
     display_name: str
     short_name: str = ""  # compact profile label for headers, e.g. "ISR-18H Endurance"
+    profile: str = "other"  # isr | high_altitude | cap | patrol | training | test (Trends filter)
+    sortie_prefix: str = "SORTIE"  # sortie label stem, e.g. "ISR-18H" -> "ISR-18H-B"
+    description: str = ""  # one-line mission description for the sortie archive
     engine_id: str = "rotax914_like"
     environment: EnvironmentConfig
     segments: list[SegmentConfig]

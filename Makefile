@@ -1,4 +1,4 @@
-.PHONY: install test lint dataset train api dashboard demo fmt
+.PHONY: install test lint dataset train api dashboard demo fmt seed users
 
 PY ?= python3
 
@@ -29,3 +29,9 @@ dashboard:
 
 demo:
 	$(PY) -m scripts.demo
+
+seed:
+	$(PY) -m scripts.seed_fleet_history --reset
+
+users:
+	$(PY) -m scripts.create_user --seed

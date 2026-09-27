@@ -3,4 +3,5 @@ tail_number: "MQ-AT-09"
 engine_id: rotax914_like
 engine_serial: "4553"
 unit: "58th Recon Wing"
+hours_at_induction: 180.0  # engine logbook hours before AeroTwin recording
 notes: "Training and maritime patrol airframe."

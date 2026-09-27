@@ -3,9 +3,13 @@
 mission_id: rapid_throttle_transitions
 display_name: "Rapid throttle transition stress test"
 short_name: "Throttle Stress Test"
+profile: test
+sortie_prefix: "TEST-FLIGHT"
+description: "Throttle Transient Bench Test"
 engine_id: rotax914_like
 
 environment:
+  headwind_mps: 0.0
   base_isa_deviation_k: 0.0
 
 segments:

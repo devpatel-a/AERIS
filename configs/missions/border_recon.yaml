@@ -1,0 +1,49 @@
+# 12-hour border reconnaissance at 4 km with a closing loiter.
+mission_id: border_recon
+display_name: "Border reconnaissance (12h)"
+short_name: "BRD-12H Recon"
+profile: isr
+sortie_prefix: "BRD"
+description: "Border Recon Patrol"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: 0.0
+  headwind_mps: 4.0
+
+segments:
+  - name: taxi
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.12
+  - name: takeoff
+    duration_s: 60
+    target_altitude_m: 60.0
+    target_airspeed_mps: 28.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 1200
+    target_altitude_m: 4000.0
+    target_airspeed_mps: 44.0
+    throttle: 0.88
+  - name: cruise
+    duration_s: 36000
+    target_altitude_m: 4000.0
+    target_airspeed_mps: 40.0
+    throttle: 0.52
+  - name: loiter
+    duration_s: 4800
+    target_altitude_m: 4000.0
+    target_airspeed_mps: 33.0
+    throttle: 0.45
+  - name: descent
+    duration_s: 1200
+    target_altitude_m: 200.0
+    target_airspeed_mps: 35.0
+    throttle: 0.28
+  - name: landing
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15

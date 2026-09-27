@@ -27,6 +27,9 @@ class TailConfig(BaseModel):
     engine_serial: str
     unit: str = ""  # operating unit / wing shown on the login airframe selector
     primary: bool = False  # default airframe preselected on the login screen
+    # Engine hours logged before this airframe's runs were recorded by AeroTwin
+    # (from the engine logbook); engine hours = this + recorded flight time.
+    hours_at_induction: float = 0.0
     notes: str = ""
 
     @classmethod

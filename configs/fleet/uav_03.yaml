@@ -3,4 +3,5 @@ tail_number: "MQ-AT-03"
 engine_id: rotax914_like
 engine_serial: "4210"
 unit: "Fleet Standby"
+hours_at_induction: 700.0  # engine logbook hours before AeroTwin recording
 notes: "Fleet standby airframe."

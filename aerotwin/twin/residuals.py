@@ -86,6 +86,7 @@ CORRELATED_GROUPS: dict[str, list[str]] = {
 def classify_fault_locus(
     normalized_residuals: dict[str, float], groups: dict[str, list[str]] = CORRELATED_GROUPS,
     odd_one_out_ratio: float = 3.0, group_alarm_threshold: float = 2.0,
+    selftest_ok: dict[str, bool] | None = None,
 ) -> dict[str, str]:
     """Classify each grouped channel as "sensor", "engine", or "nominal".
 
@@ -103,7 +104,11 @@ def classify_fault_locus(
         for c, mag in mags.items():
             others_median = float(np.median([v for cc, v in mags.items() if cc != c])) or 1e-6
             if mag > group_alarm_threshold and mag > odd_one_out_ratio * others_median:
-                result[c] = "sensor"
+                # Odd one out: a failing sensor, unless its loop self-test is
+                # healthy — then the physical quantity itself deviates, i.e. a
+                # localized engine fault (e.g. one cylinder's cooling blocked).
+                healthy_loop = selftest_ok is not None and selftest_ok.get(c, False)
+                result[c] = "engine" if healthy_loop else "sensor"
             elif median > group_alarm_threshold:
                 result[c] = "engine"
             else:

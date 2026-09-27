@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import asdict
 from pathlib import Path
+from typing import Annotated
 
 import numpy as np
 import pandas as pd
@@ -16,8 +17,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 
 from aerotwin.acquisition.datasource import ParquetReplayDataSource
+from aerotwin.api.deps import jsonable, operator_name
 from aerotwin.api.routers import auth as auth_router
+from aerotwin.api.routers import fleet as fleet_router
+from aerotwin.api.routers import planner as planner_router
+from aerotwin.api.routers import replay as replay_router
+from aerotwin.api.routers import reports as reports_router
+from aerotwin.api.routers import simcontrol as simcontrol_router
 from aerotwin.api.routers import system as system_router
+from aerotwin.api.routers import twin as twin_router
 from aerotwin.api.schemas import (
     InjectFaultRequest,
     MissionRiskRequest,
@@ -29,12 +37,12 @@ from aerotwin.api.schemas import (
 from aerotwin.api.security import require_token
 from aerotwin.api.state import ReplaySession, Session, get_app_state, run_session_loop
 from aerotwin.faults.specs import ENGINE_FAULT_TYPES, SENSOR_FAULT_TYPES, FaultSpec
-from aerotwin.health.fleet import compute_fleet_table, compute_tail_heatmap
+from aerotwin.fleet.records import get_summary
 from aerotwin.physics.state import HEALTH_NAMES
 from aerotwin.reports.pdf import generate_mission_report
 from aerotwin.reports.summary import compute_post_flight_summary
 from aerotwin.simulation.risk import run_mission_go_no_go
-from aerotwin.storage.db import get_mission, list_alerts, list_maintenance_records
+from aerotwin.storage.db import DATA_DIR, get_mission, list_alerts, list_maintenance_records
 from aerotwin.storage.parquet_store import DEFAULT_MISSION_LOG_DIR, list_mission_logs
 
 app = FastAPI(title="AeroTwin API", version="0.1.0")
@@ -46,8 +54,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(auth_router.router)
-app.include_router(system_router.router)
+for _router in (auth_router, system_router, fleet_router, twin_router, planner_router, replay_router, reports_router, simcontrol_router):
+    app.include_router(_router.router)
 
 
 @app.get("/api/engines")
@@ -78,28 +86,6 @@ def engine_config(engine_id: str) -> dict:
     }
 
 
-@app.get("/api/fleet")
-def fleet_table() -> list[dict]:
-    """List every fleet tail with its latest computed health/RUL/status and cumulative
-    logged hours, derived from its stored mission runs — for the Trends & Fleet
-    Health Analytics screen's fleet table.
-    """
-    state = get_app_state()
-    return [asdict(row) for row in compute_fleet_table(state.db, state.fleet_registry, state.engine_registry)]
-
-
-@app.get("/api/fleet/{tail_id}/heatmap")
-def fleet_heatmap(tail_id: str, missions: int = 12) -> dict:
-    """One tail's per-subsystem health index across its last `missions` runs —
-    for the Trends screen's subsystem x mission heatmap.
-    """
-    state = get_app_state()
-    try:
-        return asdict(compute_tail_heatmap(state.db, state.fleet_registry, state.engine_registry, tail_id, missions))
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
 @app.get("/api/mission_config/{mission_id}")
 def mission_config(mission_id: str) -> dict:
     """Return a mission's full segment profile (used for Mission Planner's flight-envelope
@@ -116,7 +102,9 @@ def mission_config(mission_id: str) -> dict:
 async def start_live(req: StartLiveRequest) -> dict:
     """Start a LIVE-mode demo session (simulated telemetry standing in for CAN)."""
     state = get_app_state()
-    session = state.start_session("LIVE", req.engine_id, req.mission_id, req.speed, tail_id=req.tail_id)
+    session = state.start_session(
+        "LIVE", req.engine_id, req.mission_id, req.speed, tail_id=req.tail_id, atmosphere=req.atmosphere
+    )
     session.task = asyncio.create_task(run_session_loop(session, state))
     return {"run_id": session.run_id, "mode": session.mode}
 
@@ -138,7 +126,7 @@ async def start_simulation(req: StartSimulationRequest) -> dict:
 
 
 @app.post("/api/faults/inject", dependencies=[Depends(require_token)])
-def inject_fault(req: InjectFaultRequest) -> dict:
+def inject_fault(req: InjectFaultRequest, operator: Annotated[str | None, Depends(operator_name)]) -> dict:
     """Inject a fault into the active session's hidden plant (demo purposes)."""
     state = get_app_state()
     if state.session is None:
@@ -151,8 +139,8 @@ def inject_fault(req: InjectFaultRequest) -> dict:
         severity=req.severity,
         ramp_duration_s=req.ramp_duration_s,
     )
-    state.inject_fault(spec)
-    return {"injected": req.fault_type, "onset_s": state.session.t}
+    injected = state.inject_fault(spec, operator)
+    return {"injected": req.fault_type, "onset_s": state.session.t, "fault_id": injected.fault_id}
 
 
 @app.get("/api/health/latest")
@@ -161,13 +149,13 @@ def health_latest() -> dict:
     row = get_app_state().buffer.latest()
     if row is None:
         raise HTTPException(status_code=404, detail="No active session data yet")
-    return _jsonable(row)
+    return jsonable(row)
 
 
 @app.get("/api/health/history")
 def health_history(seconds: float = 300.0) -> list[dict]:
     """Return buffered rows from the last `seconds` of the active session."""
-    return [_jsonable(r) for r in get_app_state().buffer.window(seconds)]
+    return [jsonable(r) for r in get_app_state().buffer.window(seconds)]
 
 
 @app.get("/api/health/history.csv")
@@ -176,7 +164,7 @@ def health_history_csv(seconds: float = 300.0) -> Response:
     "Export CSV Telemetry" button. Nested fields (measured/expected/residuals/...)
     are flattened to `<field>_<channel>` columns.
     """
-    rows = [_flatten_row(_jsonable(r)) for r in get_app_state().buffer.window(seconds)]
+    rows = [_flatten_row(jsonable(r)) for r in get_app_state().buffer.window(seconds)]
     if not rows:
         raise HTTPException(status_code=404, detail="No active session data yet")
     csv_text = pd.DataFrame(rows).to_csv(index=False)
@@ -309,7 +297,7 @@ def download_report(mission_run_id: str) -> FileResponse:
     if not log_path.exists():
         raise HTTPException(status_code=404, detail=f"No stored mission log '{mission_run_id}'")
     engine_config = get_app_state().engine_registry.get("rotax914_like")
-    out_path = Path("data") / "reports" / f"{mission_run_id}.pdf"
+    out_path = DATA_DIR / "reports" / f"{mission_run_id}.pdf"
     generate_mission_report(log_path, engine_config, out_path, mission_run_id)
     return FileResponse(out_path, media_type="application/pdf", filename=out_path.name)
 
@@ -338,9 +326,8 @@ def replay_list() -> list[dict]:
         engine_id = meta["engine_id"] if meta else "rotax914_like"
         summary = None
         try:
-            engine_config = state.engine_registry.get(engine_id)
-            log_df = pd.read_parquet(DEFAULT_MISSION_LOG_DIR / f"{run_id}.parquet")
-            summary = asdict(compute_post_flight_summary(log_df, engine_config))
+            cached = get_summary(state.db, run_id, state.engine_registry.get(engine_id))
+            summary = asdict(cached) if cached else None
         except Exception:
             pass  # malformed/legacy log — still list it, just without a summary
         rows.append(
@@ -396,11 +383,11 @@ async def ws_live(websocket: WebSocket) -> None:
             if state.replay is not None and state.replay.playing:
                 row = state.replay.source.read()
                 if row is not None:
-                    await websocket.send_json(_jsonable(row))
+                    await websocket.send_json(jsonable(row))
             else:
                 row = state.buffer.latest()
                 if row is not None:
-                    await websocket.send_json(_jsonable(row))
+                    await websocket.send_json(jsonable(row))
             await asyncio.sleep(1.0 / 7.0)
     except WebSocketDisconnect:
         pass

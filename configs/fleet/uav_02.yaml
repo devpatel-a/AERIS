@@ -3,4 +3,5 @@ tail_number: "MQ-AT-02"
 engine_id: rotax914_like
 engine_serial: "3992"
 unit: "58th Recon Wing"
+hours_at_induction: 1050.0  # engine logbook hours before AeroTwin recording
 notes: "High-altitude relay airframe."

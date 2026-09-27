@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import time
 from pathlib import Path
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "aerotwin.db"
+DATA_DIR = Path(os.environ.get("AEROTWIN_DATA_DIR", Path(__file__).resolve().parents[2] / "data"))
+DEFAULT_DB_PATH = DATA_DIR / "aerotwin.db"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS missions (
@@ -18,7 +20,12 @@ CREATE TABLE IF NOT EXISTS missions (
     end_time REAL,
     parquet_path TEXT,
     notes TEXT,
-    tail_id TEXT
+    tail_id TEXT,
+    sortie_label TEXT,
+    kind TEXT NOT NULL DEFAULT 'operational',
+    injected_faults_json TEXT NOT NULL DEFAULT '[]',
+    flight_s REAL,
+    engine_hours_start REAL
 );
 
 CREATE TABLE IF NOT EXISTS alerts (
@@ -29,6 +36,73 @@ CREATE TABLE IF NOT EXISTS alerts (
     severity TEXT NOT NULL,
     message TEXT NOT NULL,
     acknowledged INTEGER NOT NULL DEFAULT 0,
+    created_at REAL NOT NULL,
+    muted_until REAL
+);
+
+CREATE TABLE IF NOT EXISTS mission_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mission_run_id TEXT NOT NULL,
+    t_s REAL NOT NULL,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    detail TEXT NOT NULL DEFAULT '',
+    created_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS work_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    wo_number TEXT UNIQUE NOT NULL,
+    tail_id TEXT NOT NULL,
+    task_key TEXT NOT NULL,
+    fault_type TEXT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    ata_ref TEXT NOT NULL DEFAULT '',
+    location TEXT NOT NULL DEFAULT '',
+    priority TEXT NOT NULL DEFAULT 'MEDIUM',
+    status TEXT NOT NULL DEFAULT 'OPEN',
+    source TEXT NOT NULL DEFAULT 'advisory',
+    report_id TEXT,
+    created_by TEXT,
+    created_at REAL NOT NULL,
+    completed_at REAL,
+    engine_hours_at_completion REAL
+);
+
+CREATE TABLE IF NOT EXISTS advisory_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tail_id TEXT NOT NULL,
+    advisory_key TEXT NOT NULL,
+    reviewed_by TEXT,
+    reviewed_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mission_summaries (
+    mission_run_id TEXT PRIMARY KEY,
+    summary_json TEXT NOT NULL,
+    computed_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_id TEXT UNIQUE NOT NULL,
+    report_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    tail_id TEXT,
+    mission_run_id TEXT,
+    status TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+    compliance TEXT NOT NULL DEFAULT 'STANAG 4671 PDF',
+    subsystems_json TEXT NOT NULL DEFAULT '[]',
+    include_shap INTEGER NOT NULL DEFAULT 1,
+    content_json TEXT NOT NULL DEFAULT '{}',
+    pdf_path TEXT,
+    dispatched_to TEXT,
+    dispatched_at REAL,
+    signed_by TEXT,
+    signed_at REAL,
+    signature_sha256 TEXT,
+    created_by TEXT,
     created_at REAL NOT NULL
 );
 
@@ -77,6 +151,17 @@ LEGACY_TAIL_IDS = {
 }
 SCHEMA_VERSION = 2
 
+# Columns added after first deployment: (table, column, declaration).
+ADDED_COLUMNS = [
+    ("missions", "tail_id", "TEXT"),
+    ("missions", "sortie_label", "TEXT"),
+    ("missions", "kind", "TEXT NOT NULL DEFAULT 'operational'"),
+    ("missions", "injected_faults_json", "TEXT NOT NULL DEFAULT '[]'"),
+    ("missions", "flight_s", "REAL"),
+    ("missions", "engine_hours_start", "REAL"),
+    ("alerts", "muted_until", "REAL"),
+]
+
 
 def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     """Open (creating if needed) the AeroTwin metadata SQLite database."""
@@ -101,10 +186,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
     on a fresh database (which already has the column from SCHEMA) or one
     that's already been migrated.
     """
-    cols = {row["name"] for row in conn.execute("PRAGMA table_info(missions)")}
-    if "tail_id" not in cols:
-        conn.execute("ALTER TABLE missions ADD COLUMN tail_id TEXT")
-        conn.commit()
+    for table, column, decl in ADDED_COLUMNS:
+        cols = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+    conn.commit()
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version < 2:
         # Fleet tails were renumbered to the squadron identities (configs/fleet/);
@@ -123,21 +209,40 @@ def insert_mission(
     parquet_path: str = "",
     notes: str = "",
     tail_id: str | None = None,
+    sortie_label: str | None = None,
+    kind: str = "operational",
+    engine_hours_start: float | None = None,
+    start_time: float | None = None,
 ) -> int:
     """Record a new mission run; returns its row id."""
     cur = conn.execute(
-        "INSERT OR REPLACE INTO missions (mission_run_id, engine_id, mission_id, start_time, parquet_path, notes, tail_id) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (mission_run_id, engine_id, mission_id, time.time(), parquet_path, notes, tail_id),
+        "INSERT OR REPLACE INTO missions (mission_run_id, engine_id, mission_id, start_time, parquet_path, notes, "
+        "tail_id, sortie_label, kind, engine_hours_start) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            mission_run_id, engine_id, mission_id, start_time if start_time is not None else time.time(),
+            parquet_path, notes, tail_id, sortie_label, kind, engine_hours_start,
+        ),
     )
     conn.commit()
     return cur.lastrowid
 
 
-def close_mission(conn: sqlite3.Connection, mission_run_id: str) -> None:
-    """Mark a mission run as finished (sets end_time to now)."""
+def close_mission(
+    conn: sqlite3.Connection,
+    mission_run_id: str,
+    flight_s: float | None = None,
+    parquet_path: str | None = None,
+    injected_faults_json: str | None = None,
+    end_time: float | None = None,
+) -> None:
+    """Mark a mission run as finished: wall-clock end time, simulated flight time flown,
+    its telemetry log path and the faults injected during it (if any).
+    """
     conn.execute(
-        "UPDATE missions SET end_time = ? WHERE mission_run_id = ?", (time.time(), mission_run_id)
+        "UPDATE missions SET end_time = ?, flight_s = COALESCE(?, flight_s), "
+        "parquet_path = COALESCE(?, parquet_path), "
+        "injected_faults_json = COALESCE(?, injected_faults_json) WHERE mission_run_id = ?",
+        (end_time if end_time is not None else time.time(), flight_s, parquet_path, injected_faults_json, mission_run_id),
     )
     conn.commit()
 
@@ -161,12 +266,13 @@ def insert_alert(
     subsystem: str,
     severity: str,
     message: str,
+    created_at: float | None = None,
 ) -> int:
     """Insert a new alert row; returns its row id."""
     cur = conn.execute(
         "INSERT INTO alerts (mission_run_id, t_s, subsystem, severity, message, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?)",
-        (mission_run_id, t_s, subsystem, severity, message, time.time()),
+        (mission_run_id, t_s, subsystem, severity, message, created_at if created_at is not None else time.time()),
     )
     conn.commit()
     return cur.lastrowid

@@ -33,6 +33,7 @@ class RatingConfig(BaseModel):
     rated_rpm: float = Field(gt=0)
     max_rpm: float = Field(gt=0)
     idle_rpm: float = Field(gt=0)
+    max_continuous_power_w: float | None = None  # MCP; defaults to rated power when unset
 
 
 class TurboConfig(BaseModel):
@@ -52,6 +53,16 @@ class CoolingConfig(BaseModel):
     cooling_effectiveness_nominal: float = 1.0
     coolant_target_k: float = 363.0
     cylinder_ambient_htc_ref: float = 50.0
+    # Per-cylinder heat-rejection multipliers (shroud/duct geometry): rear or
+    # shielded cylinders reject less heat and run hotter. 1.0 = reference.
+    cylinder_cooling_bias: list[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
+    # Engine-driven centrifugal coolant pump: mass flow scales with engine speed.
+    coolant_pump_kg_s_at_rated: float = 1.9
+    # Sealed pressurized circuit: pressure rises with coolant temperature above
+    # fill temperature; coolant-path degradation (loss/blockage) lowers it.
+    coolant_pressure_fill_kpa: float = 100.0
+    coolant_pressure_fill_temp_k: float = 293.0
+    coolant_pressure_kpa_per_k: float = 0.9
 
 
 class FuelConfig(BaseModel):
@@ -82,6 +93,9 @@ class LimitsConfig(BaseModel):
     max_map_kpa: float
     min_coolant_temp_k: float
     max_coolant_temp_k: float
+    cht_target_k: float | None = None  # normal cruise CHT target (display + health margin nominal)
+    cht_caution_k: float | None = None  # caution threshold: CHT above this counts toward exceedance time
+    oil_temp_buffer_k: float = 10.0  # minimum safe margin below max oil temp for mission planning
 
 
 class PropellerConfig(BaseModel):
@@ -108,6 +122,7 @@ class LubricationConfig(BaseModel):
     oil_pump_efficiency_nominal: float = 1.0
     oil_pressure_ref_kpa: float
     oil_pressure_rpm_ref: float
+    oil_consumption_nominal_l_per_h: float = 0.015  # at rated rpm, nominal friction
 
 
 class ElectricalConfig(BaseModel):
@@ -126,6 +141,12 @@ class VibrationConfig(BaseModel):
     baseline_rms_g: float = 0.1
     misfire_order_gain: float = 2.0
     imbalance_order_gain: float = 2.0
+    # Relative amplitude of each firing/structural harmonic above 1x (order -> weight).
+    # Normalized so the >1x harmonics together carry the baseline firing energy.
+    harmonic_weights: dict[float, float] = Field(default_factory=lambda: {2.0: 1.0})
+    # Alarm envelope: nominal band velocity x factor, never below the floor.
+    envelope_factor: float = 1.5
+    envelope_floor_ips: float = 0.03
 
 
 class FrictionConfig(BaseModel):
@@ -162,6 +183,7 @@ class EngineConfig(BaseModel):
     fuel: FuelConfig
     ve_map: VeMapConfig
     limits: LimitsConfig
+    operating_ranges: dict[str, list[float]] = Field(default_factory=dict)
     propeller: PropellerConfig
     thermal_masses: ThermalMassesConfig
     lubrication: LubricationConfig

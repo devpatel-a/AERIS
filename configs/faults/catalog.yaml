@@ -1,0 +1,101 @@
+# Simulation Control "Fault Injection Matrix": one card per injectable fault,
+# each mapped to a FaultSpec the live session's FaultInjector applies to the
+# hidden plant (engine faults) or the sensor layer (sensor faults).
+# target: cylinder index 0-3 for engine faults, channel name for sensor faults.
+time_warp_options: [1, 2, 5, 10, 20]
+cards:
+  - id: 1
+    fault_type: cooling_degradation
+    title: Cooling Degradation
+    icon: device_thermostat
+    description: Heat exchanger airflow blockage / radiator fin fouling at the target cylinder's cooling duct.
+    target: 2
+    target_options: [null, 0, 1, 2, 3]
+    severity: 0.18
+    severity_range: [0.1, 0.5]
+    profile: ramp
+    ramp_duration_s: 120
+  - id: 2
+    fault_type: injector_abnormality
+    title: Injector Abnormality
+    icon: opacity
+    description: Fuel spray pattern asymmetry & pintle erosion on the target cylinder's injector.
+    target: 1
+    target_options: [0, 1, 2, 3]
+    severity: 0.25
+    profile: step
+    ramp_duration_s: 0
+    extra: {direction: -1.0}
+  - id: 3
+    fault_type: misfire
+    title: Cylinder Misfire
+    icon: flash_on
+    description: Partial ignition drop on Spark Plug A (dual-plug failover active).
+    target: 0
+    target_options: [0, 1, 2, 3]
+    severity: 0.6
+    profile: step
+    ramp_duration_s: 0
+    extra: {period_s: 2.0, cut_fraction: 0.5}
+  - id: 4
+    fault_type: lubrication_issue
+    title: Lubrication Issue
+    icon: oil_barrel
+    description: Oil cooler bypass valve stuck open or scavenge line pressure drop.
+    severity: 0.3
+    profile: ramp
+    ramp_duration_s: 300
+  - id: 5
+    fault_type: sensor_drift
+    title: Sensor Drift
+    icon: timeline
+    description: Thermocouple CHT-03 offset bias — gradual calibration drift.
+    target: cht_3_k
+    target_options: [cht_1_k, cht_2_k, cht_3_k, cht_4_k, egt_1_k, egt_2_k, egt_3_k, egt_4_k, oil_temp_k, oil_pressure_kpa]
+    severity: 1.0
+    profile: ramp
+    ramp_duration_s: 1200
+    extra: {max_drift: 5.0}
+  - id: 6
+    fault_type: sensor_dropout
+    title: Sensor Total Failure
+    icon: error_outline
+    description: Exhaust Gas Temp (EGT-02) sensor open-circuit / NaN readout.
+    target: egt_2_k
+    target_options: [cht_1_k, cht_2_k, cht_3_k, cht_4_k, egt_1_k, egt_2_k, egt_3_k, egt_4_k, oil_temp_k, oil_pressure_kpa]
+    severity: 1.0
+    profile: step
+    ramp_duration_s: 0
+    extra: {dropout_prob: 1.0}
+  - id: 7
+    fault_type: combustion_instability
+    title: Combustion Instability
+    icon: mode_heat
+    description: Lean blowout tendency — cycle-to-cycle combustion efficiency scatter.
+    severity: 0.5
+    profile: step
+    ramp_duration_s: 0
+  - id: 8
+    fault_type: overheating_trend
+    title: Overheating Trend
+    icon: thermostat
+    description: Sustained low-airspeed/high-power heat soak eroding the cooling margin.
+    severity: 0.3
+    profile: ramp
+    ramp_duration_s: 600
+  - id: 9
+    fault_type: abnormal_vibration
+    title: Abnormal Vibration
+    icon: vibration
+    description: Propeller blade aerodynamic unbalance / bearing spalling (1.0× order spike).
+    severity: 0.6
+    profile: ramp
+    ramp_duration_s: 120
+  - id: 10
+    fault_type: alternator_degradation
+    title: Alternator Degradation
+    icon: battery_alert
+    description: Voltage regulator ripple / avionics bus sag under heavy servo load.
+    severity: 0.4
+    profile: ramp
+    ramp_duration_s: 300

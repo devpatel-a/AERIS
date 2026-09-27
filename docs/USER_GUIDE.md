@@ -3,6 +3,29 @@
 This guide covers operating the AeroTwin dashboard and CLI tools once the
 backend (`make api`) and dashboard (`make dashboard`) are running.
 
+## Signing in
+
+The dashboard opens on the **Secure Access** screen. Sign in with an operator
+ID, a 6-8 digit PIN, a clearance role and the airframe you are assigned to.
+Demo operators (seeded from `configs/users/operators.yaml` on first API start;
+`make users` reseeds them):
+
+| Operator ID | Name | Roles | Demo PIN |
+|---|---|---|---|
+| MIL-9842-ALPHA | Flight-Line Alpha | all three | 20250704 |
+| MIL-4471-ALVAREZ | Lt. Cmdr. Alvarez | UAV Operator, Propulsion Engineer | 44710914 |
+| MIL-2210-VANCE | Capt. M. Vance | Propulsion Engineer, Maintenance Technician | 22100914 |
+| MIL-3307-VAUGHN | Eng. Vaughn | Propulsion Engineer, Maintenance Technician | 33070914 |
+
+Add real operators with `python -m scripts.create_user <ID> "<Name>" --roles ...`.
+
+## Fleet history
+
+`make seed` simulates each airframe's recorded sorties (see
+`configs/history/fleet_history.yaml`) through the physics plant, the twin and
+the fault classifier, so Trends & Fleet, Mission Replay and Reports have real
+history to show. It takes roughly 15-20 minutes on a 10-core machine.
+
 ## Starting a session
 
 1. Open the dashboard at `http://localhost:5173` (or wherever Vite/nginx

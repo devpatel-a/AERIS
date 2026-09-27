@@ -40,7 +40,18 @@ def apply_engine_fault(
     sev = severity_at(t, spec)
 
     if spec.fault_type == "cooling_degradation":
-        model.health[HIDX_COOLING_EFF] = 1.0 - sev
+        if spec.target is None:
+            model.health[HIDX_COOLING_EFF] = 1.0 - sev
+        else:
+            # Localized loss (e.g. one cylinder's shroud/duct blocked): the shared
+            # radiator/cowling path degrades partly, the target cylinder much more,
+            # so the twin sees an asymmetric CHT residual on that head.
+            cyl = int(spec.target)
+            # A blocked duct fraction removes less than proportional heat rejection.
+            model.health[HIDX_COOLING_EFF] = 1.0 - 0.25 * sev
+            factor = np.ones(4)
+            factor[cyl] = 1.0 - 0.35 * sev
+            model.cylinder_cooling_factor = factor
 
     elif spec.fault_type == "overheating_trend":
         # Same mechanism as cooling_degradation but intended for milder severities,

@@ -1,0 +1,54 @@
+# 10-hour maritime surface-search patrol at low altitude over warm sea air.
+mission_id: maritime_patrol
+display_name: "Maritime patrol, low altitude (10h)"
+short_name: "MAR-10H Patrol"
+profile: patrol
+sortie_prefix: "MAR"
+description: "Maritime Surface Search"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: 3.0
+  headwind_mps: 5.0
+
+segments:
+  - name: taxi
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.12
+  - name: takeoff
+    duration_s: 60
+    target_altitude_m: 60.0
+    target_airspeed_mps: 28.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 600
+    target_altitude_m: 1200.0
+    target_airspeed_mps: 40.0
+    throttle: 0.8
+  - name: transit
+    duration_s: 3600
+    target_altitude_m: 1200.0
+    target_airspeed_mps: 46.0
+    throttle: 0.58
+  - name: search_pattern
+    duration_s: 25200
+    target_altitude_m: 900.0
+    target_airspeed_mps: 34.0
+    throttle: 0.47
+  - name: transit_home
+    duration_s: 3600
+    target_altitude_m: 1200.0
+    target_airspeed_mps: 46.0
+    throttle: 0.56
+  - name: descent
+    duration_s: 1200
+    target_altitude_m: 200.0
+    target_airspeed_mps: 35.0
+    throttle: 0.28
+  - name: landing
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15

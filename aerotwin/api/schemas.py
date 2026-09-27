@@ -12,6 +12,7 @@ class StartLiveRequest(BaseModel):
     mission_id: str = "isr_18h_endurance"
     speed: float = 50.0
     tail_id: str | None = None  # attributes this run to a fleet tail (see aerotwin.twin.fleet)
+    atmosphere: str = "isa"  # Simulation Control atmosphere preset (see api.state.ATMOSPHERE_PRESETS)
 
 
 class StartSimulationRequest(BaseModel):

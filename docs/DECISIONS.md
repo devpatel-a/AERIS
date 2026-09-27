@@ -386,3 +386,37 @@ this log used.
   (UAV-07/03/11/02/09/05); existing runs are remapped once (`PRAGMA user_version` 2).
 - **Station identity + datalink budget** live in `configs/gcs/station.yaml`;
   link margin is a free-space link budget at the live slant range.
+
+## Stitch UI rebuild — Phase 2 (backend for every screen)
+- **Rotax 914 limits + cooling calibration.** CHT limit is now the real Rotax 914
+  135 °C (was 235 °C, an air-cooled figure); EGT 950 °C. `cylinder_ambient_htc_ref`
+  raised 55 → 70 so a healthy engine stays under 135 °C in climb on a +12 °C ISA
+  day (120–130 °C), while 18 % cooling loss or a 45 °C day breach it. Rear
+  cylinders carry a small cooling bias (`cylinder_cooling_bias`), so Cyl 3 runs hottest.
+- **Localized cooling fault.** `cooling_degradation` with a cylinder target models a
+  blocked duct: shared cooling path −25 %·severity, target head −35 %·severity.
+- **Sensor vs engine attribution.** Live sensor faults are now actually applied to
+  live measurements, and a simulated ECU loop self-test (thermocouple/transducer loop
+  resistance) accompanies each channel. An odd-one-out residual with a healthy loop
+  is attributed to a localized *engine* fault; with an abnormal loop, to the *sensor*.
+  Dropped samples (NaN) are synthesized from the twin ("Failsafe: Twin Synth").
+- **Retrained classifier** on 150 samples with the new physics (half of the cooling
+  cases localized): macro F1 0.32 → 0.96 (docs/ML_RESULTS.md).
+- **Lifetime RUL** = engine hours until the overall health index reaches the
+  maintenance threshold (70), from an exponential degradation fit over the tail's
+  recent sorties + the live point, bootstrap 90 % CI, capped at the TBO horizon.
+  The old in-flight particle filter (hours of *this* flight) is no longer shown.
+- **Stored telemetry** is 1 Hz, holds what the GCS received (measured values), the
+  twin's expected values and the classifier's residual features, so Replay can re-run
+  root-cause analysis on any stored window.
+- **HIL CAN bus.** Each live tick publishes the DBC frames on a per-session CAN
+  channel and decodes them with the receiver (heartbeat gaps/checksums); a telemetry
+  packet is HMAC-signed/verified once per simulated second.
+- **Planner** runs full-length missions at dt = 1 s (coarser steps are unstable) in
+  a process pool: central + 5 Monte Carlo + 2 mitigation runs (~20–30 s for 18 h).
+- **Fleet history** is seeded by `make seed`: every sortie in
+  `configs/history/fleet_history.yaml` is simulated through plant + twin + nominal
+  model + classifier. For speed the history twin uses the tail's *true* global wear
+  state (what the UKF converges to) instead of running the UKF itself.
+- Coolant pressure/flow, oil consumption and harmonic vibration (ips + envelope) are
+  new model outputs, all tagged approx in the engine YAML.
