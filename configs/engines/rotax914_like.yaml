@@ -8,6 +8,8 @@
 # documentation are tagged `# approx — replace with OEM data`.
 engine_id: rotax914_like
 display_name: "Rotax 914-class turbocharged boxer (representative, injected variant)"
+short_name: "Rotax 914-class"
+monitor_label: "Rotax 914 Turbocharged"
 
 geometry:
   cylinders: 4

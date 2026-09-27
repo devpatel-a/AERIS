@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import pickle
 import threading
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -15,7 +16,10 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
+from aerotwin.acquisition.bus import get_can_bus
 from aerotwin.acquisition.datasource import ParquetReplayDataSource
+from aerotwin.acquisition.link import StationConfig, link_margin_db
+from aerotwin.auth.service import seed_operators
 from aerotwin.diagnostics.alerts import Alert, AlertManager
 from aerotwin.diagnostics.diagnosis import Diagnosis, build_diagnosis
 from aerotwin.faults.injector import FaultInjector
@@ -57,6 +61,7 @@ class Session:
     plant: EngineModel | None  # hidden ground-truth model, LIVE mode only
     mission_helper: MissionRunner  # used only for .inputs_at_time()
     run_id: str
+    tail_id: str | None = None
     speed: float = 50.0
     running: bool = True
     t: float = 0.0
@@ -93,8 +98,11 @@ class AppState:
         self.engine_registry = EngineRegistry()
         self.mission_registry = MissionRegistry()
         self.fleet_registry = FleetRegistry()
+        self.station = StationConfig.load()
         self.buffer = LiveBuffer()
         self.db = get_connection()
+        seed_operators(self.db)
+        self.bus_interface = self._probe_bus()
         self.session: Session | None = None
         self.replay: ReplaySession | None = None
         self.classifier: FaultClassifier | None = self._load_classifier()
@@ -104,6 +112,17 @@ class AppState:
         # everything else in the process — many times slower rather than sharing
         # progress. One at a time; a second caller gets a clear 409 instead of a stall.
         self.mission_risk_lock = threading.Lock()
+
+    @staticmethod
+    def _probe_bus() -> str | None:
+        """Open the CAN bus once to report which interface is available (None if none)."""
+        try:
+            bus = get_can_bus()
+        except Exception:
+            return None
+        name = f"{bus.__class__.__name__}:{getattr(bus, 'channel_info', '')}"
+        bus.shutdown()
+        return name
 
     @staticmethod
     def _load_classifier() -> FaultClassifier | None:
@@ -151,7 +170,8 @@ class AppState:
 
         session = Session(
             mode=mode, engine_config=engine_config, mission=mission, twin=twin, plant=plant,
-            mission_helper=mission_helper, run_id=run_id, speed=speed, nominal_model=nominal_model,
+            mission_helper=mission_helper, run_id=run_id, tail_id=tail_id, speed=speed,
+            nominal_model=nominal_model,
         )
         self.session = session
         insert_mission(self.db, run_id, engine_id, mission_id, tail_id=tail_id)
@@ -205,6 +225,33 @@ def _classify_fault(session: Session, classifier: FaultClassifier, health) -> Di
     )
 
 
+def session_context(session: Session, state: AppState, inputs) -> dict[str, Any]:
+    """Identity + flight-condition header data for one tick (shell top bar, sidebar footer)."""
+    tail = None
+    if session.tail_id is not None:
+        try:
+            tail = state.fleet_registry.get(session.tail_id)
+        except KeyError:
+            tail = None
+    return {
+        "tail_id": session.tail_id,
+        "engine_id": session.engine_config.engine_id,
+        "engine_class": session.engine_config.short_name or session.engine_config.display_name,
+        "engine_serial": tail.engine_serial if tail else None,
+        "run_id": session.run_id,
+        "mission_id": session.mission.mission_id,
+        "mission_name": session.mission.short_name or session.mission.display_name,
+        "phase": session.mission_helper.current_segment_name(session.t),
+        "altitude_m": inputs.altitude_m,
+        "oat_c": inputs.ambient_temp_k - 273.15,
+        "airspeed_mps": inputs.airspeed_mps,
+        "link_hz": 1.0 / session.twin.dt,
+        "link_margin_db": link_margin_db(state.station.datalink, inputs.altitude_m),
+        "speed": session.speed,
+        "wall_ts": time.time(),
+    }
+
+
 async def run_session_loop(session: Session, state: AppState, max_rows: int = 200_000) -> None:
     """Background asyncio task: step the session's physics forward and publish to `state.buffer`."""
     dt = session.twin.dt
@@ -214,6 +261,7 @@ async def run_session_loop(session: Session, state: AppState, max_rows: int = 20
     try:
         while session.running and session.t < total_s:
             inputs = session.mission_helper.inputs_at_time(session.t)
+            context = session_context(session, state, inputs)
 
             if session.mode == "LIVE" and session.plant is not None:
                 session.fault_injector.step_callback(session.t, session.plant)
@@ -227,6 +275,7 @@ async def run_session_loop(session: Session, state: AppState, max_rows: int = 20
                 row = {
                     "t_s": result.t_s,
                     "mode": "LIVE",
+                    "context": context,
                     "expected": result.expected,
                     "measured": result.measured,
                     "true": flat,
@@ -311,7 +360,10 @@ async def run_session_loop(session: Session, state: AppState, max_rows: int = 20
             else:
                 out = session.twin.step_simulation(inputs)
                 flat = out.as_flat_dict()
-                row = {"t_s": session.t, "mode": "SIMULATION", "expected": flat, "measured": flat, "true": flat}
+                row = {
+                    "t_s": session.t, "mode": "SIMULATION", "context": context,
+                    "expected": flat, "measured": flat, "true": flat,
+                }
                 if len(session.rows) < max_rows:
                     session.rows.append({"t_s": session.t, **flat})
             state.buffer.push(row)

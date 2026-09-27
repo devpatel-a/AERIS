@@ -11,7 +11,7 @@ function indexTone(value: number | null): string {
   return "bg-status-critical-bg text-status-critical";
 }
 
-export default function Trends() {
+export default function TrendsFleet() {
   const [fleet, setFleet] = useState<TailStatus[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [heatmap, setHeatmap] = useState<TailHeatmap | null>(null);

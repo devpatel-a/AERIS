@@ -1,12 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, createElement, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { API_BASE } from "./api";
 
 export type LiveRow = Record<string, any>;
 
-/** Auto-reconnecting WebSocket hook for /ws/live. Backs off up to 5s between attempts. */
-export function useLiveSocket(): { latest: LiveRow | null; connected: boolean } {
-  const [latest, setLatest] = useState<LiveRow | null>(null);
-  const [connected, setConnected] = useState(false);
+export interface LiveState {
+  latest: LiveRow | null;
+  connected: boolean;
+  /** Age of the latest frame when it arrived (ms): server stamp -> browser receipt. */
+  syncLatencyMs: number | null;
+}
+
+const LiveContext = createContext<LiveState | null>(null);
+
+/** Auto-reconnecting WebSocket connection to /ws/live. Backs off up to 5s between attempts. */
+function useLiveSocketConnection(): LiveState {
+  const [state, setState] = useState<LiveState>({ latest: null, connected: false, syncLatencyMs: null });
   const retryDelay = useRef(500);
 
   useEffect(() => {
@@ -15,30 +23,29 @@ export function useLiveSocket(): { latest: LiveRow | null; connected: boolean } 
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const connect = () => {
-      const wsUrl = API_BASE.replace(/^http/, "ws") + "/ws/live";
-      ws = new WebSocket(wsUrl);
-
+      ws = new WebSocket(API_BASE.replace(/^http/, "ws") + "/ws/live");
       ws.onopen = () => {
-        setConnected(true);
+        setState((s) => ({ ...s, connected: true }));
         retryDelay.current = 500;
       };
       ws.onmessage = (event) => {
         try {
-          setLatest(JSON.parse(event.data));
+          const row = JSON.parse(event.data) as LiveRow;
+          const wallTs = row?.context?.wall_ts;
+          const syncLatencyMs = typeof wallTs === "number" ? Math.max(0, Date.now() - wallTs * 1000) : null;
+          setState({ latest: row, connected: true, syncLatencyMs });
         } catch {
           /* ignore malformed frame */
         }
       };
       ws.onclose = () => {
-        setConnected(false);
+        setState((s) => ({ ...s, connected: false }));
         if (!closedByEffect) {
           retryTimer = setTimeout(connect, retryDelay.current);
           retryDelay.current = Math.min(retryDelay.current * 1.7, 5000);
         }
       };
-      ws.onerror = () => {
-        ws?.close();
-      };
+      ws.onerror = () => ws?.close();
     };
 
     connect();
@@ -49,5 +56,16 @@ export function useLiveSocket(): { latest: LiveRow | null; connected: boolean } 
     };
   }, []);
 
-  return { latest, connected };
+  return state;
+}
+
+/** One shared live-telemetry socket for the whole signed-in app. */
+export function LiveProvider({ children }: { children: ReactNode }) {
+  return createElement(LiveContext.Provider, { value: useLiveSocketConnection() }, children);
+}
+
+export function useLiveSocket(): LiveState {
+  const ctx = useContext(LiveContext);
+  if (!ctx) throw new Error("useLiveSocket must be used inside <LiveProvider>");
+  return ctx;
 }

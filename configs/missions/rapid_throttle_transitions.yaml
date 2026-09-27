@@ -2,6 +2,7 @@
 # to exercise turbo spool, manifold-filling and thermal-lag dynamics.
 mission_id: rapid_throttle_transitions
 display_name: "Rapid throttle transition stress test"
+short_name: "Throttle Stress Test"
 engine_id: rotax914_like
 
 environment:

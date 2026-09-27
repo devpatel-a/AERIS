@@ -153,6 +153,8 @@ class EngineConfig(BaseModel):
 
     engine_id: str
     display_name: str
+    short_name: str = ""  # compact class label for headers, e.g. "Rotax 914-class"
+    monitor_label: str = ""  # engine-monitor label, e.g. "Rotax 914 Turbocharged"
     geometry: GeometryConfig
     rating: RatingConfig
     turbo: TurboConfig

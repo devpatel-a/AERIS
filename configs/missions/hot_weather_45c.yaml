@@ -2,6 +2,7 @@
 # altitude, stressing cooling margin. Used by the M10 demo's NO-GO check.
 mission_id: hot_weather_45c
 display_name: "Hot weather (45C) low-altitude patrol"
+short_name: "Hot-WX 45C Patrol"
 engine_id: rotax914_like
 
 environment:

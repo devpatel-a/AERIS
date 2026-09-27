@@ -6,7 +6,7 @@ import { LineChart } from "../components/aeris";
 
 const SPEEDS = [1, 10, 50, 200];
 
-export default function Replay() {
+export default function MissionReplay() {
   const [runs, setRuns] = useState<MissionRun[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<MissionRun | null>(null);

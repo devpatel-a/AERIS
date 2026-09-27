@@ -1,5 +1,6 @@
 tail_id: UAV-05
 tail_number: "MQ-AT-05"
 engine_id: rotax914_like
-engine_serial: "RX914-A1005"
-notes: "Flagged for cooling-system inspection — see maintenance log."
+engine_serial: "4118"
+unit: "58th Recon Wing"
+notes: "Electronic warfare support airframe."

@@ -4,6 +4,8 @@
 # second engine via config alone — no code changes required.
 engine_id: na_carbureted_like
 display_name: "NA air-cooled carbureted boxer (representative)"
+short_name: "NA boxer-class"
+monitor_label: "NA Air-Cooled Carbureted Boxer"
 
 geometry:
   cylinders: 4

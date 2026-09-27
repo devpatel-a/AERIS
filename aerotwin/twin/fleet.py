@@ -25,6 +25,8 @@ class TailConfig(BaseModel):
     tail_number: str
     engine_id: str
     engine_serial: str
+    unit: str = ""  # operating unit / wing shown on the login airframe selector
+    primary: bool = False  # default airframe preselected on the login screen
     notes: str = ""
 
     @classmethod

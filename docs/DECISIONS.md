@@ -371,3 +371,18 @@ it's the recommended, safe default and is what every verification run in
 this log used.
 
 (Further decisions appended below as milestones progress.)
+
+## Stitch UI rebuild — Phase 1 (shell, routes, login)
+- **UI source of truth** is the Stitch project "AeroTwin Drone Engine Intelligence";
+  design tokens in `dashboard/tailwind.config.js` are copied from its exports.
+- **Operator login** is a simple application auth flow (no CAC/PIV hardware or
+  WebAuthn): operator ID + 6-8 digit PIN (salted PBKDF2) + clearance role →
+  HMAC-signed bearer token recorded in `auth_sessions` (expiry + revocation).
+  The "Insert CAC" button is kept as designed and moves focus to the PIN field.
+  The static `AEROTWIN_TOKEN` still authorizes scripts/tests.
+- **Demo operators** are seeded from `configs/users/operators.yaml` on first
+  API start (`python -m scripts.create_user --seed` to reseed).
+- **Fleet tails** were renumbered to the squadron identities shown in Stitch
+  (UAV-07/03/11/02/09/05); existing runs are remapped once (`PRAGMA user_version` 2).
+- **Station identity + datalink budget** live in `configs/gcs/station.yaml`;
+  link margin is a free-space link budget at the live slant range.

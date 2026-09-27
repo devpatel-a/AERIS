@@ -48,6 +48,7 @@ class MissionConfig(BaseModel):
 
     mission_id: str
     display_name: str
+    short_name: str = ""  # compact profile label for headers, e.g. "ISR-18H Endurance"
     engine_id: str = "rotax914_like"
     environment: EnvironmentConfig
     segments: list[SegmentConfig]

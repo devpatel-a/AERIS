@@ -1,13 +1,29 @@
-export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
-export const API_TOKEN = import.meta.env.VITE_API_TOKEN || "devtoken";
+import { getToken, UNAUTHORIZED_EVENT } from "./authToken";
 
-async function request<T>(path: string, options: RequestInit = {}, auth = false): Promise<T> {
+export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+
+export class ApiError extends Error {
+  constructor(public status: number, public detail: string) {
+    super(detail);
+  }
+}
+
+/** Fetch JSON from the API, sending the signed-in operator's bearer token when there is one. */
+export async function request<T>(path: string, options: RequestInit = {}, _auth = false): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (auth) headers["Authorization"] = `Bearer ${API_TOKEN}`;
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers: { ...headers, ...(options.headers || {}) } });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${body}`);
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail ?? body);
+    } catch {
+      /* non-JSON error body */
+    }
+    if (res.status === 401 && token) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    throw new ApiError(res.status, detail);
   }
   return res.json() as Promise<T>;
 }

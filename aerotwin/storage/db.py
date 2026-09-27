@@ -32,6 +32,28 @@ CREATE TABLE IF NOT EXISTS alerts (
     created_at REAL NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operator_id TEXT UNIQUE NOT NULL,
+    display_name TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    initials TEXT NOT NULL,
+    roles TEXT NOT NULL,
+    pin_hash TEXT NOT NULL,
+    pin_salt TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    token_id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    role TEXT NOT NULL,
+    tail_id TEXT,
+    issued_at REAL NOT NULL,
+    expires_at REAL NOT NULL,
+    revoked INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS maintenance_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     engine_id TEXT NOT NULL,
@@ -40,6 +62,20 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
     created_at REAL NOT NULL
 );
 """
+
+
+# Old sequential fleet tail id -> current squadron tail id (see _migrate).
+# Some old ids are reused as new ids, so the remap is applied once, in a
+# single CASE statement, guarded by the schema_version pragma.
+LEGACY_TAIL_IDS = {
+    "UAV-01": "UAV-07",
+    "UAV-02": "UAV-03",
+    "UAV-03": "UAV-11",
+    "UAV-04": "UAV-02",
+    "UAV-05": "UAV-09",
+    "UAV-06": "UAV-05",
+}
+SCHEMA_VERSION = 2
 
 
 def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
@@ -69,6 +105,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "tail_id" not in cols:
         conn.execute("ALTER TABLE missions ADD COLUMN tail_id TEXT")
         conn.commit()
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version < 2:
+        # Fleet tails were renumbered to the squadron identities (configs/fleet/);
+        # carry runs attributed to the old sequential ids over to their new tails.
+        cases = " ".join(f"WHEN '{old}' THEN '{new}'" for old, new in LEGACY_TAIL_IDS.items())
+        conn.execute(f"UPDATE missions SET tail_id = CASE tail_id {cases} ELSE tail_id END")
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    conn.commit()
 
 
 def insert_mission(

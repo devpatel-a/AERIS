@@ -16,6 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 
 from aerotwin.acquisition.datasource import ParquetReplayDataSource
+from aerotwin.api.routers import auth as auth_router
+from aerotwin.api.routers import system as system_router
 from aerotwin.api.schemas import (
     InjectFaultRequest,
     MissionRiskRequest,
@@ -44,6 +46,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(auth_router.router)
+app.include_router(system_router.router)
 
 
 @app.get("/api/engines")

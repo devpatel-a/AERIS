@@ -10,12 +10,45 @@ body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
 }
 
+/* Styles shared by every Stitch screen export. */
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 20;
-  display: inline-block;
   vertical-align: middle;
+  display: inline-block;
   line-height: 1;
+}
+
+.custom-shadow-card {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 10px 15px -3px rgba(15, 23, 42, 0.03);
+}
+
+/* Login: technical blueprint grid + radar wash. */
+.bg-telemetry-grid {
+  background-size: 32px 32px;
+  background-image:
+    linear-gradient(to right, rgba(195, 197, 217, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(195, 197, 217, 0.22) 1px, transparent 1px);
+}
+.bg-radar-concentric {
+  background-image: radial-gradient(circle at 50% 50%, rgba(30, 94, 255, 0.05) 0%, rgba(30, 94, 255, 0.01) 40%, transparent 70%);
+}
+.shadow-aerospace {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 10px 15px -3px rgba(15, 23, 42, 0.03);
+}
+
+/* Telemetry values use fixed-width figures so live updates don't jitter. */
+.font-mono, [class*="font-telemetry"] {
+  font-variant-numeric: tabular-nums;
 }
 
 ::-webkit-scrollbar {
@@ -25,12 +58,4 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #c3c5d9;
   border-radius: 4px;
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
-}
-.animate-pulse-subtle {
-  animation: pulse-dot 1.8s ease-in-out infinite;
 }

@@ -24,7 +24,7 @@ const FAULT_META: Record<string, { icon: string; bg: string; fg: string; perCyli
   turbo_degradation: { icon: "flash_on", bg: "bg-blue-50", fg: "text-blue-600", perCylinder: false },
 };
 
-export default function DemoControl() {
+export default function SimulationControl() {
   const { latest, connected } = useLiveHistory(1);
   const [fleet, setFleet] = useState<TailStatus[]>([]);
   const [tailId, setTailId] = useState<string>("");

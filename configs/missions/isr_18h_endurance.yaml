@@ -3,6 +3,7 @@
 # altitude. This is the backbone mission for the M10 demo storyline.
 mission_id: isr_18h_endurance
 display_name: "18h ISR endurance patrol"
+short_name: "ISR-18H Endurance"
 engine_id: rotax914_like
 
 environment:

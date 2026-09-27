@@ -1,0 +1,31 @@
+# Ground-station operator roster, seeded into the `users` table on first API
+# start (and by `scripts/create_user.py --seed`). Demo credentials only: the
+# CAC PIN is hashed with PBKDF2 at seed time and never stored in clear.
+#
+# roles: which operational clearance roles the operator may sign in with
+#   uav_operator | propulsion_engineer | maint_tech
+operators:
+  - operator_id: MIL-9842-ALPHA
+    display_name: Flight-Line Alpha
+    title: Flight-Line Operator
+    initials: FL
+    roles: [uav_operator, propulsion_engineer, maint_tech]
+    demo_pin: "20250704"
+  - operator_id: MIL-4471-ALVAREZ
+    display_name: Lt. Cmdr. Alvarez
+    title: Flight Engineer
+    initials: LA
+    roles: [uav_operator, propulsion_engineer]
+    demo_pin: "44710914"
+  - operator_id: MIL-2210-VANCE
+    display_name: Capt. M. Vance
+    title: Chief Propulsion Eng.
+    initials: MV
+    roles: [propulsion_engineer, maint_tech]
+    demo_pin: "22100914"
+  - operator_id: MIL-3307-VAUGHN
+    display_name: Eng. Vaughn
+    title: Propulsion Engineer
+    initials: EV
+    roles: [propulsion_engineer, maint_tech]
+    demo_pin: "33070914"

@@ -1,0 +1,7 @@
+tail_id: UAV-07
+tail_number: "MQ-AT-07"
+engine_id: rotax914_like
+engine_serial: "4471"
+unit: "58th Recon Wing"
+notes: "ISR squadron primary airframe."
+primary: true

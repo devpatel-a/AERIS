@@ -24,7 +24,7 @@ const TIME_RANGES = [
 
 const SEVERITY_TO_RISK: Record<string, string> = { none: "NORMAL", low: "WATCH", moderate: "WARNING", high: "CRITICAL" };
 
-export default function TwinComparison() {
+export default function DigitalTwin() {
   const { history, latest, connected } = useLiveHistory(3000);
   const [groupIdx, setGroupIdx] = useState(0);
   const [cylinder, setCylinder] = useState(1);

@@ -1,5 +1,6 @@
 tail_id: UAV-03
 tail_number: "MQ-AT-03"
 engine_id: rotax914_like
-engine_serial: "RX914-A1003"
-notes: "Flagged for bearing lubrication watch — see maintenance log."
+engine_serial: "4210"
+unit: "Fleet Standby"
+notes: "Fleet standby airframe."
