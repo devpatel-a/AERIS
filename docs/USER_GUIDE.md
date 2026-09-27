@@ -44,38 +44,43 @@ history to show. It takes roughly 15-20 minutes on a 10-core machine.
 
 ## Pages
 
-- **Live Ops** — the primary flight-line view: mode badge, RPM/MAP gauges,
-  per-cylinder CHT/EGT bar charts with hard-limit lines, oil/coolant/
-  electrical/vibration readouts, a 7-tile subsystem health grid with
-  NORMAL/WATCH/WARNING/CRITICAL pills, and an active-alerts panel.
-- **Twin Comparison** — pick any channel and see observed (measured) vs
-  expected (model-predicted) traces, the residual (observed − expected)
-  time series below it, and the UKF's current estimated health-parameter
-  vector. This is where you can watch the twin "notice" a fault before any
-  limit is crossed.
-- **Diagnostics** — recent alerts (from the SQLite alert log) and, once
-  you've run `make train`, the offline-evaluated ML layer: SHAP top-factor
-  explanations for sample classifier predictions, detection lead time vs a
-  hard-limit alarm, RUL RMSE, and the ONNX edge-model latency/size
-  benchmark.
-- **Trends** — the active session's overall health index, estimated
-  `cooling_effectiveness`, and vibration RMS over time, plus an engine
-  selector stub for a future fleet view.
-- **Mission Planner** — pick an engine + mission, optionally seed the
-  check from the current session's estimated health (the "feedback loop"
-  checkbox), and run a Monte Carlo go/no-go check. Results show a GO/
-  CAUTION/NO-GO verdict, reasons, and a full per-channel margin table
-  (limit, worst case, mean, probability of exceedance). This can take
-  30-90 seconds — it's genuinely re-simulating the mission many times.
-- **Replay** — load any previously saved mission run (from a LIVE session,
-  a SIMULATION run, or `make demo`), then play/pause/seek/change speed.
-- **Demo Control** — start/stop a LIVE or SIMULATION session, and inject a
-  fault into the running session's hidden plant to see the twin react in
-  real time (try this alongside Live Ops or Twin Comparison in a second
-  tab).
-- **Reports** — list stored mission runs and download a post-flight PDF
-  report (peak values, time above limits, health-parameter change,
-  faults observed) for any of them.
+The eight screens and the login page are rebuilt from the Stitch project
+"AeroTwin Drone Engine Intelligence" and share one shell (sidebar + telemetry
+header). Live screens show a "waiting for live telemetry" card when no LIVE
+session is streaming; start one from Simulation Control.
+
+- **Live Ops** — anomaly banner, overall engine health + lifetime RUL, subsystem
+  tiles, RPM/MAP/fuel/power gauges, per-cylinder CHT/EGT matrix, vibration orders.
+- **Digital Twin** — three.js parametric boxer engine (camera presets, layers:
+  heat map, airflow, x-ray, vibration, exploded view). Click a cylinder for its
+  observed vs twin popover (`?cyl=3` deep-links it); observed-vs-expected table,
+  UKF health parameters, channel history with the residual anomaly track.
+- **Diagnostics** — fault matrix, SHAP attribution, maintenance advisories
+  (create work orders), RUL prognostics curve, sensor correlation, event log.
+- **Trends & Fleet** — degradation KPIs over the last 20 sorties, fleet status
+  table, subsystem health matrix across sorties; CSV export.
+- **Mission Planner** — GO / NO-GO: sliders for altitude, duration, ambient ISA
+  deviation, airspeed and power; runs the full mission on the twin (with the
+  current health estimate if ticked), shows breach points, counter-measures and
+  predicted CHT/oil curves.
+- **Mission Replay** — sortie archive per tail, synchronized twin + telemetry
+  traces with the anomaly marker, playback, key events, root-cause analysis and
+  batch HDF5 export (CRC-32 in the `X-CRC32` header).
+- **Reports** — airworthiness & mission reports: filter by type, dispatch a new
+  report from the quick parameter setup, preview the STANAG A4 sheet, download
+  the PDF or raw CSV/HDF5/1553B JSON, send to the flight line. Dual sign-off:
+  the chief-engineer slot needs a Propulsion Engineer session, the maintenance
+  slot a Maintenance Technician session; the maintenance signature approves
+  the report.
+- **Simulation Control** — pause/stop/restart/step, time warp, atmosphere
+  presets, HIL CAN-bus status, the 10-card fault injection matrix (card 1's
+  blockage bar sets severity), twin response log (innovation score, parameter
+  convergence, incident timeline with detection latency) and the recommended
+  throttle-limit contingency.
+
+Detection, AI diagnosis, RUL revisions and limit warnings are armed once the
+engine is past taxi/takeoff and the UKF has converged (or 15 min of mission time
+has passed), so warm-up transients are not reported as faults.
 
 ## CLI tools
 

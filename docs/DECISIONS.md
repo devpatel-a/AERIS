@@ -420,3 +420,28 @@ this log used.
   state (what the UKF converges to) instead of running the UKF itself.
 - Coolant pressure/flow, oil consumption and harmonic vibration (ips + envelope) are
   new model outputs, all tagged approx in the engine YAML.
+
+## Phase 3 — Stitch screens (visual fidelity notes)
+
+- **Source of truth** is the Stitch project "AeroTwin Drone Engine Intelligence";
+  each page was converted from its exported HTML and compared side by side at
+  1280×1024. Values differ from Stitch's mock numbers wherever the data is real.
+- **Intentional deviations:** Digital Twin toolbar/layer panel sits above the
+  cylinder popover (z-40) so the layers stay clickable; "Breach Probability"
+  wording in the planner; the twin version chip reads "PARAMETRIC MODEL"; model
+  names are the real ones (UKF, XGBoost fault classifier, linear degradation
+  trend) instead of Stitch's "PINN-Prop-v4" / "L-M Solver" / "Weibull"; HIL/HMAC
+  footer text reflects the virtual bus on non-Linux; Replay export reads
+  "CRC-32 on export"; no Settings screen (not designed).
+- **Detection arming.** Detection, diagnosis, RUL events and limit warnings wait
+  for UKF convergence or `ARM_MAX_WAIT_S` (900 s), past taxi/takeoff. A fault
+  injected before convergence can hold confidence below 95 % indefinitely, so the
+  time fallback keeps detection working; the seeder uses the same rule.
+- **Live RUL** ignores the live health index until armed (warm-up health is not
+  wear); before that the prognosis uses the stored sortie history only.
+- **Report sign-off** has two slots signed by SHA-256 over the content (the
+  maintenance digest also covers the engineering digest); each needs its clearance
+  role in the current session.
+- **Report divergence chart** uses airborne samples after 900 s only.
+- **Twin confidence in seeded reports** is "--": the history seeder runs the twin
+  open-loop (no UKF) for speed, so there is no estimator confidence to report.
