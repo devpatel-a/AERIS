@@ -147,7 +147,9 @@ class LiveAnalytics:
         if rul_hours is None:
             return
         prev = self.last_rul
-        if prev is not None and prev > 0 and abs(rul_hours - prev) / prev >= 0.05:
+        # Only announce sustained, material revisions (>=10% and >=20 h, at most every 10 sim-minutes).
+        recent = any(e["kind"] == "RUL_UPDATE" and t_s - e["t_s"] < 600.0 for e in self.events[-20:])
+        if prev is not None and prev > 0 and not recent and abs(rul_hours - prev) / prev >= 0.10 and abs(rul_hours - prev) >= 20.0:
             delta = rul_hours - prev
             self.add_event(
                 t_s, "RUL_UPDATE",

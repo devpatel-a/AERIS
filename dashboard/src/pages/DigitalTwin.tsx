@@ -1,6 +1,6 @@
 /* Stitch screen "AeroTwin — Screen 2: Digital Twin (Hero)", bound to the live twin. */
 import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import EngineScene, { type AnchorKey, type Tool, type ViewPreset } from "../components/twin/EngineScene";
 import { NoLiveSession } from "../components/stitch/NoLiveSession";
 import { API_BASE, request } from "../lib/api";
@@ -35,7 +35,8 @@ function defaultCylinder(row: LiveRow): number {
 }
 
 function TwinScreen({ row, cfg }: { row: LiveRow; cfg: EngineConfigView }) {
-  const [picked, setPicked] = useState<number | null>(null);
+  const [params] = useSearchParams();
+  const [picked, setPicked] = useState<number | null>(params.get("cyl") ? Number(params.get("cyl")) : null);
   const selected = picked ?? defaultCylinder(row);
   return (
     <main className="icon-base-18 flex-1 grid grid-cols-12 gap-space-md p-space-md overflow-hidden bg-background min-h-0">

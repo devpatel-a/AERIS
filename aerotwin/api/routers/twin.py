@@ -189,9 +189,12 @@ def diagnostics_rul_curve() -> dict:
     """Lifetime health-index history + projected mean/90% band to the maintenance threshold."""
     state = get_app_state()
     session = live_session(state)
-    hours, values = session.rul_history
-    live = [*hours, session.engine_hours], [*values, session.health_ewma if session.health_ewma is not None else 100.0]
-    prog = prognose(live[0], live[1], state.prognostics_config)
+    # Same prognosis the live stream reports (refreshed every PROGNOSIS_INTERVAL_S), so
+    # the header RUL and the curve always agree; computed fresh only before the first refit.
+    prog = session.prognosis
+    if prog is None:
+        hours, values = session.rul_history
+        prog = prognose([*hours, session.engine_hours], [*values, session.health_ewma or 100.0], state.prognostics_config)
     return jsonable(prog.__dict__)
 
 
