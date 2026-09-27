@@ -79,6 +79,11 @@ def build_mission(req: PlanRequest, config: EngineConfig) -> MissionConfig:
     """Apply the planner's parameter overrides to a preset mission."""
     isa_dev = None if req.surface_temp_c is None else req.surface_temp_c - 15.0
     mission = req.mission.with_overrides(req.cruise_altitude_m, isa_dev)
+    if req.cruise_altitude_m is not None:
+        # The climb must end at the requested station altitude, not the preset's.
+        for s in mission.segments:
+            if s.name == "climb":
+                s.target_altitude_m = req.cruise_altitude_m
     work = [s for s in mission.segments if s.name not in FIXED_SEGMENTS]
     if req.duration_h is not None and work:
         fixed = sum(s.duration_s for s in mission.segments if s.name in FIXED_SEGMENTS)
