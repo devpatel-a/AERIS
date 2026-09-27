@@ -340,7 +340,7 @@ export default function DiagnosticsRaw() {
               {" "}
               {/* SVG RUL Chart */}
               {" "}
-              <div className="relative w-full h-56 mt-3" style={{height: '160px'}}>
+              <div className="relative w-full h-56 mt-3">
                 <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 650 200">
                   <defs>
                     {/* Confidence Envelope Gradient */}

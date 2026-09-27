@@ -78,7 +78,7 @@ export default function Login() {
   };
 
   return (
-    <div className="bg-[#F5F7FA] text-on-surface font-body-md text-body-md min-h-screen flex flex-col justify-between select-none relative overflow-x-hidden antialiased">
+    <div className="icon-base-20 bg-[#F5F7FA] text-on-surface font-body-md text-body-md min-h-screen flex flex-col justify-between select-none relative overflow-x-hidden antialiased">
       <div className="absolute inset-0 pointer-events-none bg-telemetry-grid z-0" />
       <div className="absolute inset-0 pointer-events-none bg-radar-concentric z-0" />
       <BlueprintWatermark />

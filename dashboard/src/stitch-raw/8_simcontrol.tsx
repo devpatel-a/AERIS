@@ -1,7 +1,7 @@
 /* Auto-converted from Stitch export 8_simcontrol.html — reference skeleton. */
 export default function SimControlRaw() {
   return (
-    <body className="bg-background text-on-surface antialiased flex h-screen w-screen overflow-hidden select-none" style={{width: '1920px', height: '1080px', minWidth: '1920px', maxWidth: '1920px', minHeight: '1080px', maxHeight: '1080px', overflow: 'hidden'}}>
+    <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* ================= LEFT SIDEBAR (SideNavBar Shared Component) ================= */}
       {" "}
       {" "}

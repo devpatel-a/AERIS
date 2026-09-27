@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -49,15 +50,27 @@ def twin_history(channel: str = "cht_3_k", window_s: float = 600.0, max_points: 
     rows = [r for r in get_app_state().buffer.window(window_s) if r.get("mode") == "LIVE"]
     if not rows:
         raise HTTPException(status_code=404, detail="No live telemetry yet")
-    rows = _downsample(rows, max_points)
+    # Bucket means (not stride samples) so the plotted trace is the signal, not sensor noise.
+    n = max(1, min(max_points, len(rows)))
+    buckets = [rows[i * len(rows) // n:(i + 1) * len(rows) // n] for i in range(n)]
+    buckets = [b for b in buckets if b]
+
+    def mean(vals: list) -> float | None:
+        v = [x for x in vals if x is not None and x == x]
+        return sum(v) / len(v) if v else None
+
+    def ci(r: dict, k: int) -> float | None:
+        band = r.get("expected_ci", {}).get(channel)
+        return band[k] if band else None
+
     return jsonable({
         "channel": channel,
-        "t_s": [r["t_s"] for r in rows],
-        "measured": [r["measured"].get(channel) for r in rows],
-        "expected": [r["expected"].get(channel) for r in rows],
-        "ci_low": [(r.get("expected_ci", {}).get(channel) or [None, None])[0] for r in rows],
-        "ci_high": [(r.get("expected_ci", {}).get(channel) or [None, None])[1] for r in rows],
-        "anomaly_score": [(r.get("anomaly_score") or {}).get("value") for r in rows],
+        "t_s": [b[-1]["t_s"] for b in buckets],
+        "measured": [mean([r["measured"].get(channel) for r in b]) for b in buckets],
+        "expected": [mean([r["expected"].get(channel) for r in b]) for b in buckets],
+        "ci_low": [mean([ci(r, 0) for r in b]) for b in buckets],
+        "ci_high": [mean([ci(r, 1) for r in b]) for b in buckets],
+        "anomaly_score": [mean([(r.get("anomaly_score") or {}).get("value") for r in b]) for b in buckets],
     })
 
 
@@ -298,3 +311,41 @@ def alerts_list() -> dict:
     session = state.session
     alerts = [a.__dict__ for a in reversed(session.alerts)] if session else []
     return jsonable({"alerts": alerts, "unread": sum(1 for a in alerts if not a["cleared"] and a["severity"] != "NORMAL")})
+
+
+class StressTestRequest(BaseModel):
+    power_pct_mcp: float = 100.0
+    minutes: float = 15.0
+
+
+@router.post("/api/twin/stress-test")
+def twin_stress_test(req: StressTestRequest) -> dict:
+    """Forward-simulate the twin from its current state and health at a sustained power
+    setting (holding the present flight condition), carrying each cylinder's current
+    measured-minus-twin residual forward. Returns predicted peak CHT per cylinder and
+    the first time any head reaches the CHT limit.
+    """
+    from aerotwin.physics.engine_model import EngineModel
+
+    state = get_app_state()
+    session = live_session(state)
+    row = _latest()
+    cfg = session.engine_config
+    rating = cfg.rating
+    throttle = min(1.0, req.power_pct_mcp / 100.0 * (rating.max_continuous_power_w or rating.rated_power_w) / rating.rated_power_w)
+    model = EngineModel(cfg, health=session.twin.model.health.copy(), state=session.twin.model.state.copy(), dt=1.0)
+    base = session.mission_helper.inputs_at_time(session.t)
+    offsets = [row["measured"].get(f"cht_{i}_k", 0.0) - row["expected"].get(f"cht_{i}_k", 0.0) for i in range(1, 5)]
+    peak = [0.0] * 4
+    breach_s = None
+    for k in range(int(req.minutes * 60)):
+        out = model.step(replace(base, throttle=max(base.throttle, throttle)))
+        for i in range(4):
+            v = float(out.cht_k[i]) + offsets[i]
+            peak[i] = max(peak[i], v)
+            if breach_s is None and v >= cfg.limits.max_cht_k:
+                breach_s = float(k)
+    return jsonable({
+        "power_pct_mcp": req.power_pct_mcp, "minutes": req.minutes, "peak_cht_k": peak,
+        "limit_k": cfg.limits.max_cht_k, "breach_after_s": breach_s,
+    })

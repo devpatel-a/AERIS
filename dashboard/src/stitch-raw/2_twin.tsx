@@ -97,7 +97,7 @@ export default function DigitalTwinRaw() {
           <div className="relative flex-1 w-full h-full blueprint-grid flex items-center justify-center p-6 select-none overflow-hidden">
             {/* Isometric Technical Aero Piston Assembly */}
             {" "}
-            <svg className="w-[90%] h-[90%] drop-shadow-xl" fill="none" viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg">
+            <svg className="w-[90%] h-[90%] max-h-[460px] drop-shadow-xl" fill="none" viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <radialGradient cx="50%" cy="50%" id="heat-cyl3" r="50%">
                   <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.85" />
@@ -695,6 +695,299 @@ export default function DigitalTwinRaw() {
       {" "}
       {/* ======================================================= */}
       {" "}
+      <aside className="col-span-4 flex flex-col gap-space-md h-full overflow-y-auto pr-1">
+        {/* 1. OBSERVED VS TWIN EXPECTED MATRIX */}
+        {" "}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-md shadow-sm">
+          <div className="flex items-center justify-between border-b border-outline-variant/60 pb-2 mb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary" data-icon="compare_arrows">compare_arrows</span>
+              {" "}
+              <h2 className="text-headline-sm font-headline-sm font-bold text-slate-900 text-[14px]">Observed vs Twin Expected</h2>
+            </div>
+            {" "}
+            <span className="text-telemetry-sm font-telemetry-sm text-outline text-[10px]">Δ Tolerance: ±2.5%</span>
+          </div>
+          {" "}
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-outline-variant text-[10px] font-label-caps text-slate-500 uppercase tracking-wider">
+                <th className="py-1">Parameter</th>
+                <th className="py-1 text-right">Obs</th>
+                <th className="py-1 text-right">Twin</th>
+                <th className="py-1 text-right">Residual</th>
+                <th className="py-1 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-telemetry-sm text-telemetry-sm">
+              {/* Cyl 3 CHT (Amber Watch) */}
+              <tr className="bg-amber-50/60 font-semibold text-slate-900">
+                <td className="py-1.5 flex items-center gap-1 font-headline-sm text-slate-900 font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  {" "}CHT Cyl 3
+                </td>
+                <td className="py-1.5 text-right font-bold text-amber-900">128°C</td>
+                <td className="py-1.5 text-right text-slate-600">121°C</td>
+                <td className="py-1.5 text-right text-amber-700 font-bold">+7.0°C</td>
+                <td className="py-1.5 text-center">
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">WATCH</span>
+                </td>
+              </tr>
+              {/* EGT Avg */}
+              <tr className="hover:bg-slate-50">
+                <td className="py-1.5 text-slate-700 font-body-md">EGT Avg</td>
+                <td className="py-1.5 text-right">812°C</td>
+                <td className="py-1.5 text-right text-slate-500">815°C</td>
+                <td className="py-1.5 text-right text-slate-600">-3.0°C</td>
+                <td className="py-1.5 text-center">
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[10px]">Normal</span>
+                </td>
+              </tr>
+              {/* Oil Temp */}
+              <tr className="hover:bg-slate-50">
+                <td className="py-1.5 text-slate-700 font-body-md">Oil Temp</td>
+                <td className="py-1.5 text-right">98°C</td>
+                <td className="py-1.5 text-right text-slate-500">96°C</td>
+                <td className="py-1.5 text-right text-slate-600">+2.0°C</td>
+                <td className="py-1.5 text-center">
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[10px]">Normal</span>
+                </td>
+              </tr>
+              {/* Fuel Flow */}
+              <tr className="hover:bg-slate-50">
+                <td className="py-1.5 text-slate-700 font-body-md">Fuel Flow</td>
+                <td className="py-1.5 text-right">24.1 L/h</td>
+                <td className="py-1.5 text-right text-slate-500">23.9 L/h</td>
+                <td className="py-1.5 text-right text-slate-600">+0.2 L/h</td>
+                <td className="py-1.5 text-center">
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[10px]">Normal</span>
+                </td>
+              </tr>
+              {/* MAP (Manifold Absolute Pressure) */}
+              <tr className="hover:bg-slate-50">
+                <td className="py-1.5 text-slate-700 font-body-md">MAP (Turbo)</td>
+                <td className="py-1.5 text-right">38.5 inHg</td>
+                <td className="py-1.5 text-right text-slate-500">38.4 inHg</td>
+                <td className="py-1.5 text-right text-slate-600">+0.1 inHg</td>
+                <td className="py-1.5 text-center">
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[10px]">Normal</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {" "}
+        {/* 2. ESTIMATED HEALTH PARAMETERS (Sparklines & Deltas) */}
+        {" "}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-md shadow-sm">
+          <div className="flex items-center justify-between border-b border-outline-variant/60 pb-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary" data-icon="monitor_heart">monitor_heart</span>
+              {" "}
+              <h2 className="text-headline-sm font-headline-sm font-bold text-slate-900 text-[14px]">Estimated Health Parameters</h2>
+            </div>
+            {" "}
+            <span className="text-telemetry-sm font-telemetry-sm text-outline text-[10px]">Kalman Filter Model</span>
+          </div>
+          {" "}
+          <div className="divide-y divide-slate-100">
+            {/* Cooling Effectiveness (Watch) */}
+            {" "}
+            <div className="py-1.5 flex items-center justify-between">
+              <div>
+                <span className="text-[12px] font-body-md text-slate-800 font-semibold block">Cooling Effectiveness</span>
+                {" "}
+                <span className="text-[10px] text-amber-700 font-telemetry-sm font-bold">0.82 (-18% degradation)</span>
+              </div>
+              {" "}
+              <div className="flex items-center gap-2">
+                {/* Mini SVG sparkline downward */}
+                {" "}
+                <svg className="w-14 h-4" viewBox="0 0 50 14">
+                  <path d="M 0 3 L 20 4 L 35 7 L 50 12" fill="none" stroke="#D97706" strokeWidth="1.8" />
+                </svg>
+                {" "}
+                <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[10px] font-telemetry-sm font-bold rounded">WATCH</span>
+              </div>
+            </div>
+            {" "}
+            {/* Volumetric Efficiency */}
+            {" "}
+            <div className="py-1.5 flex items-center justify-between">
+              <div>
+                <span className="text-[12px] font-body-md text-slate-800 block">Volumetric Efficiency</span>
+                {" "}
+                <span className="text-[10px] text-slate-500 font-telemetry-sm">0.98 (-1% delta)</span>
+              </div>
+              {" "}
+              <div className="flex items-center gap-2">
+                <svg className="w-14 h-4" viewBox="0 0 50 14">
+                  <path d="M 0 6 L 25 7 L 50 6" fill="none" stroke="#16A34A" strokeWidth="1.5" />
+                </svg>
+                {" "}
+                <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-telemetry-sm rounded">Nominal</span>
+              </div>
+            </div>
+            {" "}
+            {/* Injector Flow Coeff */}
+            {" "}
+            <div className="py-1.5 flex items-center justify-between">
+              <div>
+                <span className="text-[12px] font-body-md text-slate-800 block">Injector Flow Coeff</span>
+                {" "}
+                <span className="text-[10px] text-slate-500 font-telemetry-sm">0.99 (0.0% delta)</span>
+              </div>
+              {" "}
+              <div className="flex items-center gap-2">
+                <svg className="w-14 h-4" viewBox="0 0 50 14">
+                  <path d="M 0 7 L 25 7 L 50 7" fill="none" stroke="#16A34A" strokeWidth="1.5" />
+                </svg>
+                {" "}
+                <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-telemetry-sm rounded">Nominal</span>
+              </div>
+            </div>
+            {" "}
+            {/* Friction Factor */}
+            {" "}
+            <div className="py-1.5 flex items-center justify-between">
+              <div>
+                <span className="text-[12px] font-body-md text-slate-800 block">Friction Factor</span>
+                {" "}
+                <span className="text-[10px] text-slate-500 font-telemetry-sm">1.03 (+2% delta)</span>
+              </div>
+              {" "}
+              <div className="flex items-center gap-2">
+                <svg className="w-14 h-4" viewBox="0 0 50 14">
+                  <path d="M 0 8 L 25 7 L 50 6" fill="none" stroke="#16A34A" strokeWidth="1.5" />
+                </svg>
+                {" "}
+                <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-telemetry-sm rounded">Normal</span>
+              </div>
+            </div>
+            {" "}
+            {/* Oil Pump Efficiency */}
+            {" "}
+            <div className="py-1.5 flex items-center justify-between">
+              <div>
+                <span className="text-[12px] font-body-md text-slate-800 block">Oil Pump Efficiency</span>
+                {" "}
+                <span className="text-[10px] text-slate-500 font-telemetry-sm">0.97 (-1% delta)</span>
+              </div>
+              {" "}
+              <div className="flex items-center gap-2">
+                <svg className="w-14 h-4" viewBox="0 0 50 14">
+                  <path d="M 0 6 L 25 7 L 50 7" fill="none" stroke="#16A34A" strokeWidth="1.5" />
+                </svg>
+                {" "}
+                <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-telemetry-sm rounded">Normal</span>
+              </div>
+            </div>
+            {" "}
+            {/* Turbocharger Efficiency */}
+            {" "}
+            <div className="py-1.5 flex items-center justify-between">
+              <div>
+                <span className="text-[12px] font-body-md text-slate-800 block">Turbocharger Efficiency</span>
+                {" "}
+                <span className="text-[10px] text-slate-500 font-telemetry-sm">0.95 (Nominal)</span>
+              </div>
+              {" "}
+              <div className="flex items-center gap-2">
+                <svg className="w-14 h-4" viewBox="0 0 50 14">
+                  <path d="M 0 7 L 25 7 L 50 7" fill="none" stroke="#16A34A" strokeWidth="1.5" />
+                </svg>
+                {" "}
+                <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-telemetry-sm rounded">Nominal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        {" "}
+        {/* 3. FAULT SOURCE AI ATTRIBUTION CARD */}
+        {" "}
+        <div className="bg-surface-container-lowest border-2 border-amber-300 rounded-xl p-space-md shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-amber-400/10 rounded-bl-full pointer-events-none" />
+          {" "}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-amber-600" data-icon="psychology">psychology</span>
+              {" "}
+              <h3 className="text-headline-sm font-headline-sm font-bold text-slate-900 text-[13px]">Fault Source AI Attribution</h3>
+            </div>
+            {" "}
+            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-telemetry-sm font-bold">Engine Fault (Not Sensor)</span>
+          </div>
+          {" "}
+          <div className="flex items-start gap-2 bg-amber-50/70 p-2 rounded-lg border border-amber-200/80 mb-2">
+            <span className="material-symbols-outlined text-emerald-600 text-[18px] shrink-0 mt-0.5" data-icon="check_circle">check_circle</span>
+            {" "}
+            <p className="text-[11px] text-slate-700 leading-snug">Sensor integrity validated: thermocouple CHT-03 electrical resistance & bias nominal (0.998 correlation).</p>
+          </div>
+          {" "}
+          <p className="text-[11px] text-slate-700 font-body-md leading-relaxed">
+            <strong className="text-amber-900">Diagnosis:</strong>
+            {" "}Thermodynamic residual pattern matches physical cylinder coolant shroud restriction or fin fouling, causing asymmetric head heat buildup without combustion knock.
+          </p>
+        </div>
+        {" "}
+        {/* 4. COMPONENT INSPECTOR DOCKED CARD (CYLINDER 3 ASSEMBLY) */}
+        {" "}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-md shadow-sm flex-1 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b border-outline-variant/60 pb-2 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary" data-icon="hub">hub</span>
+                {" "}
+                <h3 className="text-headline-sm font-headline-sm font-bold text-slate-900 text-[13px]">Selected: Cylinder 3 Assembly</h3>
+              </div>
+              {" "}
+              <span className="text-telemetry-sm font-telemetry-sm font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Health: 71/100</span>
+            </div>
+            {" "}
+            <div className="grid grid-cols-2 gap-2 text-[11px] mb-3 font-telemetry-sm">
+              <div className="bg-surface-container-low p-2 rounded">
+                <span className="text-[10px] text-outline font-body-md block">Active Sensor Binds</span>
+                {" "}
+                <span className="font-semibold text-slate-900 block mt-0.5">CHT-03, EGT-03</span>
+                {" "}
+                <span className="text-[10px] text-slate-500">Spark Igniter 3 (Dual)</span>
+              </div>
+              {" "}
+              <div className="bg-surface-container-low p-2 rounded">
+                <span className="text-[10px] text-outline font-body-md block">Anomaly Onset</span>
+                {" "}
+                <span className="font-semibold text-amber-800 block mt-0.5">T-02:10:44</span>
+                {" "}
+                <span className="text-[10px] text-slate-500">Persistent +7°C delta</span>
+              </div>
+            </div>
+            {" "}
+            <div className="bg-surface-container-low/60 p-2 rounded border border-outline-variant/40 text-[11px] mb-2">
+              <div className="flex items-center gap-1 text-slate-500 text-[10px] mb-1">
+                <span className="material-symbols-outlined text-[14px]" data-icon="history_edu">history_edu</span>
+                {" "}
+                <span className="font-label-caps uppercase font-bold">Maintenance Record</span>
+              </div>
+              {" "}
+              <span className="text-slate-800 font-body-md">Cylinder head gasket & shroud serviced 142 flight hrs ago. Next overhaul scheduled in 58 hrs.</span>
+            </div>
+          </div>
+          {" "}
+          {/* Bottom Action Buttons */}
+          {" "}
+          <div className="flex items-center gap-2 pt-2 border-t border-outline-variant/60">
+            <button className="flex-1 h-9 rounded bg-primary text-white text-[12px] font-headline-sm font-semibold hover:bg-primary/90 transition-colors shadow-xs flex items-center justify-center gap-1">
+              <span className="material-symbols-outlined text-[16px]" data-icon="troubleshoot">troubleshoot</span>
+              {" "}
+              <span>Execute Twin Stress Test</span>
+            </button>
+            {" "}
+            <button className="h-9 px-3 rounded border border-outline-variant hover:bg-surface-container text-slate-700 text-[12px] font-headline-sm font-medium transition-colors" title="Export Diagnostic Dump">
+              <span className="material-symbols-outlined" data-icon="file_download">file_download</span>
+            </button>
+          </div>
+        </div>
+      </aside>
     </main>
   );
 }

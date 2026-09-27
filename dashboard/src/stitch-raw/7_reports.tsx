@@ -285,7 +285,7 @@ export default function ReportsRaw() {
         <div className="flex-1 overflow-y-auto p-space-xl flex justify-center watermark-pattern">
           {/* Authentic A4 Defense Engineering Sheet */}
           {" "}
-          <div className="w-full max-w-[820px] bg-white border border-[#CBD5E1] rounded-sm p-10 shadow-[0_1px_3px_rgba(15,23,42,0.05),0_10px_15px_-3px_rgba(15,23,42,0.03)] text-[#0F172A] relative flex flex-col justify-between my-auto" style={{maxWidth: '860px'}}>
+          <div className="w-full max-w-[820px] bg-white border border-[#CBD5E1] rounded-sm p-10 shadow-[0_1px_3px_rgba(15,23,42,0.05),0_10px_15px_-3px_rgba(15,23,42,0.03)] text-[#0F172A] relative flex flex-col justify-between my-auto">
             {/* Top Watermark Classification Bar */}
             {" "}
             <div className="border-b-2 border-[#0F172A] pb-3 mb-6">
