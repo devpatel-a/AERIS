@@ -64,6 +64,24 @@ class MissionConfig(BaseModel):
         """Sum of all segment durations, in seconds."""
         return sum(s.duration_s for s in self.segments)
 
+    def with_overrides(
+        self, cruise_altitude_m: float | None = None, isa_deviation_k: float | None = None
+    ) -> MissionConfig:
+        """Return a copy of this mission with an ad-hoc cruise altitude and/or ISA deviation
+        applied — used by Mission Planner's parameter sliders to evaluate a variant of a
+        preset mission instead of only the fixed YAML values.
+        """
+        mission = self.model_copy(deep=True)
+        if cruise_altitude_m is not None:
+            for segment in mission.segments:
+                if "cruise" in segment.name:
+                    segment.target_altitude_m = cruise_altitude_m
+        if isa_deviation_k is not None:
+            mission.environment.base_isa_deviation_k = isa_deviation_k
+            for segment in mission.segments:
+                segment.isa_deviation_k = None
+        return mission
+
 
 class MissionRegistry:
     """Loads and caches every mission YAML found in a config directory."""

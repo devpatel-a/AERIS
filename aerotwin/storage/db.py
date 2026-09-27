@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS missions (
     start_time REAL NOT NULL,
     end_time REAL,
     parquet_path TEXT,
-    notes TEXT
+    notes TEXT,
+    tail_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS alerts (
@@ -51,7 +52,23 @@ def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns to a pre-existing database that predates them.
+
+    `CREATE TABLE IF NOT EXISTS` (in SCHEMA) doesn't touch columns on a table
+    that already exists, so a fleet-tail attribution added after the schema
+    was first deployed needs an explicit ALTER TABLE, guarded so it's a no-op
+    on a fresh database (which already has the column from SCHEMA) or one
+    that's already been migrated.
+    """
+    cols = {row["name"] for row in conn.execute("PRAGMA table_info(missions)")}
+    if "tail_id" not in cols:
+        conn.execute("ALTER TABLE missions ADD COLUMN tail_id TEXT")
+        conn.commit()
 
 
 def insert_mission(
@@ -61,12 +78,13 @@ def insert_mission(
     mission_id: str,
     parquet_path: str = "",
     notes: str = "",
+    tail_id: str | None = None,
 ) -> int:
     """Record a new mission run; returns its row id."""
     cur = conn.execute(
-        "INSERT OR REPLACE INTO missions (mission_run_id, engine_id, mission_id, start_time, parquet_path, notes) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (mission_run_id, engine_id, mission_id, time.time(), parquet_path, notes),
+        "INSERT OR REPLACE INTO missions (mission_run_id, engine_id, mission_id, start_time, parquet_path, notes, tail_id) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (mission_run_id, engine_id, mission_id, time.time(), parquet_path, notes, tail_id),
     )
     conn.commit()
     return cur.lastrowid
@@ -78,6 +96,18 @@ def close_mission(conn: sqlite3.Connection, mission_run_id: str) -> None:
         "UPDATE missions SET end_time = ? WHERE mission_run_id = ?", (time.time(), mission_run_id)
     )
     conn.commit()
+
+
+def get_mission(conn: sqlite3.Connection, mission_run_id: str) -> sqlite3.Row | None:
+    """Return one mission run's metadata row (engine_id/mission_id/start_time/end_time), or None."""
+    cur = conn.execute("SELECT * FROM missions WHERE mission_run_id = ?", (mission_run_id,))
+    return cur.fetchone()
+
+
+def list_missions(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """List every recorded mission run's metadata, newest first."""
+    cur = conn.execute("SELECT * FROM missions ORDER BY start_time DESC")
+    return cur.fetchall()
 
 
 def insert_alert(

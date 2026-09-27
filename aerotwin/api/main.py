@@ -6,11 +6,14 @@ a WebSocket live feed.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import asdict
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from aerotwin.acquisition.datasource import ParquetReplayDataSource
 from aerotwin.api.schemas import (
@@ -23,11 +26,13 @@ from aerotwin.api.schemas import (
 )
 from aerotwin.api.security import require_token
 from aerotwin.api.state import ReplaySession, Session, get_app_state, run_session_loop
-from aerotwin.faults.specs import FaultSpec
+from aerotwin.faults.specs import ENGINE_FAULT_TYPES, SENSOR_FAULT_TYPES, FaultSpec
+from aerotwin.health.fleet import compute_fleet_table, compute_tail_heatmap
 from aerotwin.physics.state import HEALTH_NAMES
 from aerotwin.reports.pdf import generate_mission_report
+from aerotwin.reports.summary import compute_post_flight_summary
 from aerotwin.simulation.risk import run_mission_go_no_go
-from aerotwin.storage.db import list_alerts, list_maintenance_records
+from aerotwin.storage.db import get_mission, list_alerts, list_maintenance_records
 from aerotwin.storage.parquet_store import DEFAULT_MISSION_LOG_DIR, list_mission_logs
 
 app = FastAPI(title="AeroTwin API", version="0.1.0")
@@ -69,12 +74,46 @@ def engine_config(engine_id: str) -> dict:
     }
 
 
+@app.get("/api/fleet")
+def fleet_table() -> list[dict]:
+    """List every fleet tail with its latest computed health/RUL/status and cumulative
+    logged hours, derived from its stored mission runs — for the Trends & Fleet
+    Health Analytics screen's fleet table.
+    """
+    state = get_app_state()
+    return [asdict(row) for row in compute_fleet_table(state.db, state.fleet_registry, state.engine_registry)]
+
+
+@app.get("/api/fleet/{tail_id}/heatmap")
+def fleet_heatmap(tail_id: str, missions: int = 12) -> dict:
+    """One tail's per-subsystem health index across its last `missions` runs —
+    for the Trends screen's subsystem x mission heatmap.
+    """
+    state = get_app_state()
+    try:
+        return asdict(compute_tail_heatmap(state.db, state.fleet_registry, state.engine_registry, tail_id, missions))
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/api/mission_config/{mission_id}")
+def mission_config(mission_id: str) -> dict:
+    """Return a mission's full segment profile (used for Mission Planner's flight-envelope
+    chart and to bound its altitude/ISA-deviation sliders).
+    """
+    try:
+        mission = get_app_state().mission_registry.get(mission_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return mission.model_dump()
+
+
 @app.post("/api/live/start", dependencies=[Depends(require_token)])
 async def start_live(req: StartLiveRequest) -> dict:
     """Start a LIVE-mode demo session (simulated telemetry standing in for CAN)."""
     state = get_app_state()
-    session = state.start_session("LIVE", req.engine_id, req.mission_id, req.speed)
-    session.task = asyncio.create_task(run_session_loop(session, state.buffer))
+    session = state.start_session("LIVE", req.engine_id, req.mission_id, req.speed, tail_id=req.tail_id)
+    session.task = asyncio.create_task(run_session_loop(session, state))
     return {"run_id": session.run_id, "mode": session.mode}
 
 
@@ -89,8 +128,8 @@ async def stop_live() -> dict:
 async def start_simulation(req: StartSimulationRequest) -> dict:
     """Start a SIMULATION-mode run, seeded from the current LIVE twin's health if requested."""
     state = get_app_state()
-    session = state.start_session("SIMULATION", req.engine_id, req.mission_id, req.speed)
-    session.task = asyncio.create_task(run_session_loop(session, state.buffer))
+    session = state.start_session("SIMULATION", req.engine_id, req.mission_id, req.speed, tail_id=req.tail_id)
+    session.task = asyncio.create_task(run_session_loop(session, state))
     return {"run_id": session.run_id, "mode": session.mode}
 
 
@@ -125,6 +164,43 @@ def health_latest() -> dict:
 def health_history(seconds: float = 300.0) -> list[dict]:
     """Return buffered rows from the last `seconds` of the active session."""
     return [_jsonable(r) for r in get_app_state().buffer.window(seconds)]
+
+
+@app.get("/api/health/history.csv")
+def health_history_csv(seconds: float = 300.0) -> Response:
+    """CSV export of the active session's buffered telemetry — Twin Comparison's
+    "Export CSV Telemetry" button. Nested fields (measured/expected/residuals/...)
+    are flattened to `<field>_<channel>` columns.
+    """
+    rows = [_flatten_row(_jsonable(r)) for r in get_app_state().buffer.window(seconds)]
+    if not rows:
+        raise HTTPException(status_code=404, detail="No active session data yet")
+    csv_text = pd.DataFrame(rows).to_csv(index=False)
+    return Response(
+        content=csv_text, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=telemetry.csv"}
+    )
+
+
+@app.get("/api/fault_types")
+def fault_types() -> dict:
+    """Injectable fault types for Simulation & Fault Injection Control: 9 engine
+    faults (target = cylinder index) and 4 sensor faults (target = channel name).
+    The trained fault classifier collapses the 4 sensor types into one
+    'sensor_fault' class — the UI surfaces them as a single card with a sub-select.
+    """
+    return {"engine": list(ENGINE_FAULT_TYPES), "sensor": list(SENSOR_FAULT_TYPES)}
+
+
+@app.get("/api/diagnosis/latest")
+def diagnosis_latest() -> dict:
+    """Return the active session's latest AI fault diagnosis (fault, confidence, SHAP
+    explanation, severity, recommended action, RUL) — refreshed every ~15s of sim time.
+    404 until the classifier has had one full residual-feature window to run on.
+    """
+    state = get_app_state()
+    if state.session is None or state.session.last_diagnosis is None:
+        raise HTTPException(status_code=404, detail="No diagnosis available yet")
+    return asdict(state.session.last_diagnosis)
 
 
 @app.get("/api/advisories")
@@ -167,6 +243,10 @@ def mission_risk_check(req: MissionRiskRequest) -> dict:
     try:
         engine_config = state.engine_registry.get(req.engine_id)
         mission = state.mission_registry.get(req.mission_id)
+        if req.cruise_altitude_m is not None or req.isa_deviation_k is not None:
+            mission = mission.with_overrides(
+                cruise_altitude_m=req.cruise_altitude_m, isa_deviation_k=req.isa_deviation_k
+            )
 
         if req.use_current_health and state.session is not None:
             current_health = state.session.twin.model.health.copy()
@@ -196,6 +276,28 @@ def mission_risk_check(req: MissionRiskRequest) -> dict:
     }
 
 
+@app.get("/api/reports/{mission_run_id}/summary")
+def report_summary(mission_run_id: str) -> dict:
+    """JSON version of the post-flight report (peaks, time-above-limit, health delta,
+    faults observed) — powers the Reports screen's in-app A4 preview pane and the
+    Replay screen's mission-summary panel, both without generating a PDF.
+    """
+    log_path = DEFAULT_MISSION_LOG_DIR / f"{mission_run_id}.parquet"
+    if not log_path.exists():
+        raise HTTPException(status_code=404, detail=f"No stored mission log '{mission_run_id}'")
+    state = get_app_state()
+    meta = get_mission(state.db, mission_run_id)
+    engine_id = meta["engine_id"] if meta else "rotax914_like"
+    engine_config = state.engine_registry.get(engine_id)
+    result = asdict(compute_post_flight_summary(pd.read_parquet(log_path), engine_config))
+    result["mission_run_id"] = mission_run_id
+    result["engine_id"] = engine_id
+    result["mission_id"] = meta["mission_id"] if meta else None
+    result["start_time"] = meta["start_time"] if meta else None
+    result["end_time"] = meta["end_time"] if meta else None
+    return result
+
+
 @app.get("/api/reports/{mission_run_id}")
 def download_report(mission_run_id: str) -> FileResponse:
     """Generate (if needed) and return the PDF post-flight report for a stored mission run."""
@@ -220,9 +322,34 @@ def ml_summary() -> dict:
 
 
 @app.get("/api/replay/list")
-def replay_list() -> list[str]:
-    """List stored mission run ids available for replay."""
-    return list_mission_logs()
+def replay_list() -> list[dict]:
+    """List stored mission runs with metadata + computed summary (duration, health
+    delta, faults observed) — used by the Replay screen's mission list and the
+    Reports screen's table alike, so neither needs a bare filename list plus N follow-up calls.
+    """
+    state = get_app_state()
+    rows = []
+    for run_id in list_mission_logs():
+        meta = get_mission(state.db, run_id)
+        engine_id = meta["engine_id"] if meta else "rotax914_like"
+        summary = None
+        try:
+            engine_config = state.engine_registry.get(engine_id)
+            log_df = pd.read_parquet(DEFAULT_MISSION_LOG_DIR / f"{run_id}.parquet")
+            summary = asdict(compute_post_flight_summary(log_df, engine_config))
+        except Exception:
+            pass  # malformed/legacy log — still list it, just without a summary
+        rows.append(
+            {
+                "mission_run_id": run_id,
+                "engine_id": engine_id if meta else None,
+                "mission_id": meta["mission_id"] if meta else None,
+                "start_time": meta["start_time"] if meta else None,
+                "end_time": meta["end_time"] if meta else None,
+                "summary": summary,
+            }
+        )
+    return rows
 
 
 @app.post("/api/replay/start", dependencies=[Depends(require_token)])
@@ -277,17 +404,36 @@ async def ws_live(websocket: WebSocket) -> None:
 
 def _jsonable(row: dict) -> dict:
     """Coerce numpy/pandas scalars in a row dict to plain JSON-serializable types."""
-    import numpy as np
+    return {k: _jsonable_value(v) for k, v in row.items()}
 
-    out = {}
+
+def _flatten_row(row: dict, prefix: str = "") -> dict:
+    """Flatten a nested telemetry row (measured/expected/residuals/... sub-dicts) into
+    `<field>_<channel>` columns for a tabular CSV export. List-valued fields (e.g.
+    expected_ci bounds, vibration_spectrum) are kept as their string repr rather than
+    exploded into more columns.
+    """
+    flat: dict = {}
     for k, v in row.items():
-        if isinstance(v, np.generic):
-            out[k] = v.item()
-        elif isinstance(v, dict):
-            out[k] = _jsonable(v)
+        key = f"{prefix}{k}"
+        if isinstance(v, dict):
+            flat.update(_flatten_row(v, prefix=f"{key}_"))
+        elif isinstance(v, list):
+            flat[key] = str(v)
         else:
-            out[k] = v
-    return out
+            flat[key] = v
+    return flat
+
+
+def _jsonable_value(v: object) -> object:
+    """Recursive helper for `_jsonable`: coerces numpy scalars found in nested dicts/lists too."""
+    if isinstance(v, np.generic):
+        return v.item()
+    if isinstance(v, dict):
+        return _jsonable(v)
+    if isinstance(v, (list, tuple)):
+        return [_jsonable_value(item) for item in v]
+    return v
 
 
 __all__ = ["app", "Session"]

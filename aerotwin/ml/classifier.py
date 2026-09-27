@@ -51,6 +51,23 @@ class FaultClassifier:
             explanations.append("; ".join(parts))
         return explanations
 
+    def explain_structured(self, X: np.ndarray, top_k: int = 5) -> list[list[dict[str, float | str]]]:
+        """Return the top-k signed SHAP contributions per row, as {feature, value} —
+        for a bipolar SHAP bar chart (positive = raised confidence in the predicted
+        class, negative = lowered it), rather than the plain-English text `explain()` gives.
+        """
+        if self.explainer is None:
+            self.explainer = shap.TreeExplainer(self.model)
+        shap_values = self.explainer.shap_values(X)
+        pred = self._predict_indices(X)
+
+        rows: list[list[dict[str, float | str]]] = []
+        for i in range(X.shape[0]):
+            row_shap = shap_values[i] if shap_values.ndim == 2 else shap_values[i, :, pred[i]]
+            order = np.argsort(-np.abs(row_shap))[:top_k]
+            rows.append([{"feature": self.feature_cols[j], "value": float(row_shap[j])} for j in order])
+        return rows
+
 
 def train_classifier(
     X: np.ndarray,

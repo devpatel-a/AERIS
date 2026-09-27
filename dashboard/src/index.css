@@ -7,7 +7,15 @@ html, body, #root {
 }
 
 body {
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 20;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
 }
 
 ::-webkit-scrollbar {
@@ -15,6 +23,14 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #c3c5d9;
   border-radius: 4px;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.animate-pulse-subtle {
+  animation: pulse-dot 1.8s ease-in-out infinite;
 }

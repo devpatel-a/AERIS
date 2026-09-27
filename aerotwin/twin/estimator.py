@@ -121,6 +121,28 @@ class TwinEstimator:
         """Current reduced physics-state estimate (13,), theta excluded."""
         return self.ukf.x[:N_PHYS].copy()
 
+    @property
+    def confidence_pct(self) -> float:
+        """0-100: how converged the health-parameter estimate is (posterior vs. prior variance).
+
+        100% would mean the UKF has fully resolved health-parameter uncertainty
+        from its 0.02 prior; 0% (the value before any update has run) means no
+        information has been incorporated yet.
+        """
+        health_var = np.diag(self.ukf.P)[N_PHYS:]
+        prior_var = 0.02
+        return float(np.clip(100.0 * (1.0 - np.mean(health_var) / prior_var), 0.0, 100.0))
+
+    @property
+    def measurement_variance(self) -> dict[str, float]:
+        """Per-channel predicted-measurement variance (diag of the innovation covariance `S`)
+        from the most recent UKF update — 0.0 for every channel before the first update.
+        """
+        s = getattr(self.ukf, "S", None)
+        if s is None:
+            return dict.fromkeys(MEASUREMENT_CHANNELS, 0.0)
+        return dict(zip(MEASUREMENT_CHANNELS, (float(v) for v in np.diag(s)), strict=True))
+
     def step(self, inputs: EngineInputs, measured: dict[str, float]) -> np.ndarray:
         """Predict + update with one measurement row; returns the innovation (residual) vector."""
         self.ukf.predict(config=self.config, inputs=inputs)

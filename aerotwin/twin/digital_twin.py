@@ -41,6 +41,8 @@ class TwinStepResult:
     fault_locus: dict[str, str]
     degradation_state: dict[str, float]
     health: HealthSnapshot
+    confidence_pct: float
+    expected_ci: dict[str, list[float]]
 
 
 @dataclass
@@ -114,6 +116,15 @@ class DigitalTwin:
         )
         degradation_state = dict(zip(HEALTH_NAMES, (float(v) for v in self.model.health), strict=True))
 
+        # 95% prediction interval per measured channel, from the UKF's innovation
+        # covariance — powers the Twin Comparison confidence-envelope ribbon.
+        variance = self.estimator.measurement_variance
+        expected_ci = {
+            c: [float(expected_flat[c] - 1.96 * variance[c] ** 0.5), float(expected_flat[c] + 1.96 * variance[c] ** 0.5)]
+            for c in variance
+            if c in expected_flat
+        }
+
         return TwinStepResult(
             t_s=self.t,
             expected=expected_flat,
@@ -124,6 +135,8 @@ class DigitalTwin:
             fault_locus=fault_locus,
             degradation_state=degradation_state,
             health=health_snapshot,
+            confidence_pct=self.estimator.confidence_pct,
+            expected_ci=expected_ci,
         )
 
     @property

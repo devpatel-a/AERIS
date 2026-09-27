@@ -11,6 +11,7 @@ class StartLiveRequest(BaseModel):
     engine_id: str = "rotax914_like"
     mission_id: str = "isr_18h_endurance"
     speed: float = 50.0
+    tail_id: str | None = None  # attributes this run to a fleet tail (see aerotwin.twin.fleet)
 
 
 class StartSimulationRequest(BaseModel):
@@ -20,6 +21,7 @@ class StartSimulationRequest(BaseModel):
     mission_id: str = "isr_18h_endurance"
     speed: float = 200.0
     use_current_health: bool = True
+    tail_id: str | None = None
 
 
 class InjectFaultRequest(BaseModel):
@@ -55,6 +57,10 @@ class MissionRiskRequest(BaseModel):
     n_monte_carlo: int = 10
     max_duration_s: float = 1800.0
     use_current_health: bool = True
+    # Ad-hoc overrides for Mission Planner's parameter sliders — leave unset to
+    # use the preset mission's own YAML values unchanged.
+    cruise_altitude_m: float | None = None
+    isa_deviation_k: float | None = None
 
 
 class EdgeTelemetryPacket(BaseModel):

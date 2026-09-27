@@ -39,3 +39,24 @@ def compute_vibration(
 
     rms_g = float(np.sqrt(sum(v * v for v in bands.values())))
     return rms_g, bands
+
+
+def vibration_spectrum(bands: dict[str, float], rpm: float) -> list[dict[str, float]]:
+    """Convert crank-order vibration bands to labeled frequency-domain points
+    (order x crank rotational frequency), for a vibration spectrum display.
+
+    This is real physically-grounded harmonic content — not a synthesized
+    broadband FFT — because the vibration model only simulates discrete crank
+    orders (see EngineConfig.vibration.crank_orders), not raw high-rate
+    accelerometer samples a true FFT would need. Returned sorted by frequency.
+    """
+    crank_hz = rpm / 60.0
+    points = []
+    for label, amplitude_g in bands.items():
+        order_str = label.replace("order_", "").replace("p", ".")
+        try:
+            order = float(order_str)
+        except ValueError:
+            continue
+        points.append({"order": order, "frequency_hz": order * crank_hz, "amplitude_g": amplitude_g})
+    return sorted(points, key=lambda p: p["frequency_hz"])
