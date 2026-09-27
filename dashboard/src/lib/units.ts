@@ -9,12 +9,14 @@ export const mpsToKts = (mps: number | null | undefined) => (mps == null ? null 
 /** Fixed-decimals number with thousands separators; "--" for missing values. */
 export function fmt(v: number | null | undefined, digits = 0): string {
   if (v == null || !Number.isFinite(v)) return "--";
+  if (Math.abs(v) < 0.5 * 10 ** -digits) v = 0; // avoid "-0"
   return v.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 export function signed(v: number | null | undefined, digits = 1): string {
   if (v == null || !Number.isFinite(v)) return "--";
-  return `${v >= 0 ? "+" : ""}${fmt(v, digits)}`;
+  const r = Math.abs(v) < 0.5 * 10 ** -digits ? 0 : v; // avoid "-0"
+  return `${r >= 0 ? "+" : ""}${fmt(r, digits)}`;
 }
 
 /** "2h 10m" / "12m" / "45s" */
