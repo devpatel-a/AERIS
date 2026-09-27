@@ -106,6 +106,23 @@ CREATE TABLE IF NOT EXISTS reports (
     created_at REAL NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS mission_plans (
+    plan_id TEXT PRIMARY KEY,          -- PLN-0001
+    mission_id TEXT UNIQUE NOT NULL,   -- plan_0001: id in the mission registry / missions table
+    name TEXT NOT NULL,
+    code TEXT UNIQUE NOT NULL,         -- mission identifier / sortie callsign stem
+    tail_id TEXT,
+    template_id TEXT NOT NULL,
+    spec_json TEXT NOT NULL,           -- planner form (PlanSpec)
+    mission_json TEXT NOT NULL,        -- compiled MissionConfig
+    last_verdict TEXT,
+    last_confidence REAL,
+    last_evaluated_at REAL,
+    created_by TEXT,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     operator_id TEXT UNIQUE NOT NULL,
@@ -272,12 +289,13 @@ def insert_alert(
     severity: str,
     message: str,
     created_at: float | None = None,
+    acknowledged: bool = False,
 ) -> int:
     """Insert a new alert row; returns its row id."""
     cur = conn.execute(
-        "INSERT INTO alerts (mission_run_id, t_s, subsystem, severity, message, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (mission_run_id, t_s, subsystem, severity, message, created_at if created_at is not None else time.time()),
+        "INSERT INTO alerts (mission_run_id, t_s, subsystem, severity, message, acknowledged, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (mission_run_id, t_s, subsystem, severity, message, int(acknowledged), created_at if created_at is not None else time.time()),
     )
     conn.commit()
     return cur.lastrowid

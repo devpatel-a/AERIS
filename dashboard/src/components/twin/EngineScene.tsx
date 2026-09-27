@@ -24,6 +24,7 @@ export interface EngineSceneProps {
   vibration: boolean;
   exploded: number; // 0..1
   view: ViewPreset;
+  viewTick: number; // increments on every preset click, so re-selecting a preset re-snaps the camera
   tool: Tool;
   zoomTick: number; // increments on each zoom-tool click
   gearRatio: number;
@@ -56,6 +57,7 @@ const CYL_LAYOUT: [number, number][] = [
   [0.7, 1],
   [0.7, -1],
 ];
+const ORBIT_CENTER = new THREE.Vector3(0.2, 0.9, 0);
 const CAMERA_PRESETS: Record<ViewPreset, THREE.Vector3> = {
   iso: new THREE.Vector3(-9.6, 8.6, 12.2),
   top: new THREE.Vector3(0.01, 17, 0.01),
@@ -270,7 +272,7 @@ export default function EngineScene(props: EngineSceneProps) {
     camera.position.copy(CAMERA_PRESETS.iso);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0.2, 0.9, 0); // engine sits in the lower-centre of the viewport, as in Stitch
+    controls.target.copy(ORBIT_CENTER); // engine sits in the lower-centre of the viewport, as in Stitch
     api.current = { camera, controls, target: null };
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 1.6));
@@ -421,8 +423,10 @@ export default function EngineScene(props: EngineSceneProps) {
 
   // Camera preset.
   useEffect(() => {
-    if (api.current) api.current.target = CAMERA_PRESETS[props.view].clone();
-  }, [props.view]);
+    if (!api.current) return;
+    api.current.controls.target.copy(ORBIT_CENTER); // undo any pan
+    api.current.target = CAMERA_PRESETS[props.view].clone();
+  }, [props.view, props.viewTick]);
 
   // Tool: left-drag rotates or pans.
   useEffect(() => {

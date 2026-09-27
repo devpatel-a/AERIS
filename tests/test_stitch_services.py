@@ -5,6 +5,7 @@ and the live-session analytics + Simulation Control / Replay / Reports / Fleet A
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import time
 
@@ -110,7 +111,12 @@ def test_planner_mission_overrides_and_environment():
     assert env["density_altitude_m"] > 5200.0  # warmer than ISA -> higher density altitude
 
 
-def _wait_for(client, predicate, timeout=60.0):
+# Wall-clock ceiling for sim-time conditions: the 500x session is CPU-bound, so on a busy
+# host reaching cruise (T+21 min) can take minutes; the wait returns as soon as it is met.
+WAIT_S = float(os.environ.get("AEROTWIN_TEST_WAIT_S", "300"))
+
+
+def _wait_for(client, predicate, timeout=WAIT_S):
     t0 = time.time()
     while time.time() - t0 < timeout:
         row = client.get("/api/health/latest")

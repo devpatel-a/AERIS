@@ -38,6 +38,7 @@ from aerotwin.physics.state import nominal_health_vector
 from aerotwin.physics.vibration import overall_velocity_ips, vibration_spectrum
 from aerotwin.reports.summary import compute_post_flight_summary
 from aerotwin.simulation.mission import MissionConfig, MissionRegistry, MissionRunner
+from aerotwin.simulation.plans import load_into_registry as load_plans_into_registry
 from aerotwin.storage.buffer import LiveBuffer
 from aerotwin.storage.db import close_mission, get_connection, insert_alert, insert_mission
 from aerotwin.storage.parquet_store import save_mission_log
@@ -158,6 +159,7 @@ class AppState:
         self.buffer = LiveBuffer()
         self.db = get_connection()
         seed_operators(self.db)
+        load_plans_into_registry(self.db, self.mission_registry)
         self.bus_interface = self._probe_bus()
         self.session: Session | None = None
         self.replay: ReplaySession | None = None
@@ -298,7 +300,8 @@ class AppState:
         if injected:
             self.db.execute("UPDATE missions SET kind = 'test' WHERE mission_run_id = ?", (session.run_id,))
         for alert in session.alerts:
-            insert_alert(self.db, session.run_id, alert.t_s, alert.subsystem, alert.severity, alert.message)
+            insert_alert(self.db, session.run_id, alert.t_s, alert.subsystem, alert.severity, alert.message,
+                         acknowledged=alert.acknowledged)
         if session.analytics is not None:
             for ev in session.analytics.events:
                 self.db.execute(

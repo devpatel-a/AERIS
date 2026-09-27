@@ -23,4 +23,5 @@ datalink:
   rx_antenna_gain_dbi: 18.0
   cable_losses_db: 4.0
   rx_sensitivity_dbm: -98.0
-  standoff_range_km: 45.0   # nominal ground distance of the loiter orbit from the GCS
+  standoff_range_km: 45.0
+  gcs_antenna_height_m: 10.0  # approx — GCS mast height; sets the LOS radio horizon   # nominal ground distance of the loiter orbit from the GCS

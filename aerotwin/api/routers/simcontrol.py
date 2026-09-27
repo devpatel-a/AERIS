@@ -56,12 +56,23 @@ def _session_view() -> dict[str, Any]:
         })
     return {
         "running": s.running, "paused": s.paused, "mode": s.mode, "run_id": s.run_id, "tail_id": s.tail_id,
-        "mission_id": s.mission.mission_id, "t_s": s.t, "loop_ms": s.twin.dt * 1000.0, "speed": s.speed,
+        "mission_id": s.mission.mission_id, "t_s": s.t,
+        **_mission_meta(state, s.mission.mission_id), "loop_ms": s.twin.dt * 1000.0, "speed": s.speed,
         "atmosphere": s.atmosphere, "atmospheres": ATMOSPHERE_PRESETS, "throttle_cap": s.throttle_cap,
         "time_warp_options": catalog.get("time_warp_options", [1, 2, 5, 10, 20]),
         "hil_bus": s.hil.stats() if s.hil else None, "bus_interface": state.bus_interface,
         "cards": cards, "active_faults": len(injected),
     }
+
+
+def _mission_meta(state, mission_id: str) -> dict[str, Any]:
+    """The flown mission's name/origin and its own ISA deviation (what the "isa" preset restores)."""
+    try:
+        base = state.mission_registry.get(mission_id)
+    except KeyError:
+        return {}
+    return {"mission_name": base.display_name, "mission_origin": base.origin,
+            "mission_isa_deviation_k": base.environment.base_isa_deviation_k}
 
 
 def _severity_now(injected, t: float) -> float:

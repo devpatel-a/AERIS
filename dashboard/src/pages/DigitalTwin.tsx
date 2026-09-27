@@ -63,6 +63,7 @@ function Viewport({ row, cfg, selected, onSelect }: { row: LiveRow; cfg: EngineC
   const navigate = useNavigate();
   const { syncLatencyMs } = useLiveSocket();
   const [view, setView] = useState<ViewPreset>("iso");
+  const [viewTick, setViewTick] = useState(0);
   const [tool, setTool] = useState<Tool>("rotate");
   const [zoomTick, setZoomTick] = useState(0);
   const [layers, setLayers] = useState<Record<Layer, boolean>>({ heatmap: true, airflow: false, xray: false, vibration: false });
@@ -111,7 +112,7 @@ function Viewport({ row, cfg, selected, onSelect }: { row: LiveRow; cfg: EngineC
           <ToolButton icon="zoom_in" title="Zoom Engine" active={false} onClick={() => setZoomTick((z) => z + 1)} />
           <div className="w-px h-4 bg-outline-variant" />
           {(["iso", "top", "front", "side"] as ViewPreset[]).map((v) => (
-            <button key={v} onClick={() => setView(v)} className={`px-2 py-1 text-[11px] font-telemetry-sm rounded hover:bg-surface-container ${view === v ? "font-semibold text-on-surface" : "text-outline"}`}>
+            <button key={v} onClick={() => { setView(v); setViewTick((n) => n + 1); }} className={`px-2 py-1 text-[11px] font-telemetry-sm rounded hover:bg-surface-container ${view === v ? "font-semibold text-on-surface" : "text-outline"}`}>
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
           ))}
@@ -142,7 +143,7 @@ function Viewport({ row, cfg, selected, onSelect }: { row: LiveRow; cfg: EngineC
         <EngineScene
           chtC={chtC} rpm={m.rpm ?? 0} airspeedMps={row.context?.airspeed_mps ?? 0} vibIps={row.vibration_ips_rms ?? 0}
           heatmap={layers.heatmap} airflow={layers.airflow} xray={layers.xray} vibration={layers.vibration} exploded={exploded}
-          view={view} tool={tool} zoomTick={zoomTick} gearRatio={(g.gear_ratio as number) ?? 2.43} anchorEls={anchorEls} onSelectCylinder={onSelect}
+          view={view} viewTick={viewTick} tool={tool} zoomTick={zoomTick} gearRatio={(g.gear_ratio as number) ?? 2.43} anchorEls={anchorEls} onSelectCylinder={onSelect}
         />
         {cyls.filter((c) => c.cylinder !== selected).map((c) => {
           const s = statusColors(c.status);

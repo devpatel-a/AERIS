@@ -314,8 +314,25 @@ def alerts_list() -> dict:
     """Active session alerts (newest first) for the notifications bell."""
     state = get_app_state()
     session = state.session
-    alerts = [a.__dict__ for a in reversed(session.alerts)] if session else []
-    return jsonable({"alerts": alerts, "unread": sum(1 for a in alerts if not a["cleared"] and a["severity"] != "NORMAL")})
+    alerts = [{**a.__dict__, "id": i} for i, a in enumerate(session.alerts)][::-1] if session else []
+    return jsonable({
+        "alerts": alerts, "run_id": session.run_id if session else None,
+        "unread": sum(1 for a in alerts if not a["acknowledged"] and not a["cleared"] and a["severity"] != "NORMAL"),
+    })
+
+
+class AckRequest(BaseModel):
+    ids: list[int] | None = None  # None -> acknowledge every alert of the session
+
+
+@router.post("/api/alerts/ack", dependencies=[Depends(require_token)])
+def alerts_ack(req: AckRequest) -> dict:
+    """Acknowledge session alerts (persisted with the alert log when the session is saved)."""
+    session = live_session()
+    for i, a in enumerate(session.alerts):
+        if req.ids is None or i in req.ids:
+            a.acknowledged = True
+    return alerts_list()
 
 
 class StressTestRequest(BaseModel):

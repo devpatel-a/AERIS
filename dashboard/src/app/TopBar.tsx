@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { request } from "../lib/api";
+import { usePoll } from "../lib/usePoll";
 import { useAuth } from "../auth/AuthContext";
 import { useLiveSocket } from "../lib/useLiveSocket";
 import { useStationState } from "./StationContext";
@@ -33,7 +35,6 @@ export default function TopBar() {
 
   const mode: string = !connected ? "OFFLINE" : latest ? (ctx ? String(latest.mode) : "REPLAY") : "IDLE";
   const pill = MODE_PILL[mode] ?? MODE_PILL.IDLE;
-  const hasAlarm = latest?.alarms ? Object.values(latest.alarms as Record<string, boolean>).some(Boolean) : false;
 
   return (
     <header className="bg-surface border-b border-outline-variant h-14 flex items-center justify-between px-margin shrink-0 select-none">
@@ -59,10 +60,7 @@ export default function TopBar() {
           </div>
         </div>
         <div className="flex items-center gap-space-sm pl-space-md border-l border-outline-variant">
-          <button aria-label="Notifications" className="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant relative transition-colors duration-150">
-            <span className="material-symbols-outlined text-[19px]">notifications</span>
-            {hasAlarm && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-tertiary-container ring-2 ring-surface" />}
-          </button>
+          <NotificationsMenu />
           <AccountMenu />
           <div className="flex items-center gap-2 pl-space-xs">
             <div className="w-7 h-7 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs" title={session?.operator.display_name}>
@@ -141,6 +139,96 @@ function AccountMenu() {
             <span className="material-symbols-outlined text-[16px]">logout</span>
             Sign Out
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SEV_CHIP: Record<string, string> = {
+  CRITICAL: "bg-[#FEE2E2] text-[#B91C1C]",
+  WARNING: "bg-[#FFEDD5] text-[#C2410C]",
+  WATCH: "bg-[#FEF3C7] text-[#B45309]",
+  NORMAL: "bg-[#DCFCE7] text-[#15803D]",
+};
+
+/** Notifications bell: the live session's subsystem alerts, with acknowledge. */
+function NotificationsMenu() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const alerts = usePoll(() => request<any>("/api/alerts"), open ? 3000 : 10000, [open]);
+  const data = alerts.data;
+  const unread: number = data?.unread ?? 0;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const ack = async (ids?: number[]) => {
+    setBusy(true);
+    try {
+      alerts.setData(await request<any>("/api/alerts/ack", { method: "POST", body: JSON.stringify({ ids: ids ?? null }) }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const items: any[] = data?.alerts ?? [];
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        aria-label="Notifications" aria-expanded={open} onClick={() => setOpen((v) => !v)}
+        className="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant relative transition-colors duration-150"
+      >
+        <span className="material-symbols-outlined text-[19px]">notifications</span>
+        {unread > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-tertiary-container ring-2 ring-surface" />}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-10 z-40 w-96 bg-white border border-[#CBD5E1] rounded-xl shadow-float flex flex-col max-h-[420px]">
+          <div className="flex items-center justify-between px-space-md py-space-sm border-b border-[#F1F5F9]">
+            <div>
+              <div className="text-headline-sm font-headline-sm text-[#0F172A]">Subsystem Alerts</div>
+              <div className="font-telemetry-sm text-telemetry-sm text-[#94A3B8]">{data?.run_id ? `${unread} unacknowledged · this sortie` : "No live session"}</div>
+            </div>
+            <button disabled={busy || unread === 0} onClick={() => ack()} className="text-telemetry-sm font-telemetry-sm font-bold text-primary hover:underline disabled:opacity-40 disabled:no-underline">
+              Acknowledge all
+            </button>
+          </div>
+          <div className="overflow-y-auto divide-y divide-[#F1F5F9]">
+            {items.length === 0 && <p className="px-space-md py-space-md font-body-sm text-body-sm text-[#475569]">{data?.run_id ? "No subsystem alerts raised this sortie." : "Start a session in Simulation Control to receive alerts."}</p>}
+            {items.map((a) => {
+              const unreadItem = !a.acknowledged && !a.cleared && a.severity !== "NORMAL";
+              return (
+                <div key={a.id} className={`px-space-md py-space-sm flex items-start gap-space-sm ${unreadItem ? "bg-[#F8FAFF]" : ""}`}>
+                  <span className={`mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-telemetry-sm font-bold shrink-0 ${SEV_CHIP[a.severity] ?? SEV_CHIP.WATCH}`}>{a.severity}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-body-sm text-body-sm font-semibold text-[#0F172A] capitalize">{String(a.subsystem).replace(/_/g, " ")}</span>
+                      <span className="font-telemetry-sm text-telemetry-sm text-[#94A3B8]">T+{formatFlightTime(a.t_s)}</span>
+                    </div>
+                    <p className="font-body-sm text-body-sm text-[#475569]">{String(a.message).replace(/_/g, " ").replace(/^./, (c: string) => c.toUpperCase())}</p>
+                  </div>
+                  {unreadItem && (
+                    <button aria-label="Acknowledge alert" title="Acknowledge" disabled={busy} onClick={() => ack([a.id])} className="w-6 h-6 rounded flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-primary shrink-0">
+                      <span className="material-symbols-outlined text-[16px]">done</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="px-space-md py-space-sm border-t border-[#F1F5F9]">
+            <button onClick={() => { setOpen(false); navigate("/diagnostics"); }} className="w-full h-8 rounded bg-primary/10 hover:bg-primary hover:text-white text-primary text-xs font-semibold transition-colors">
+              Open Diagnostics →
+            </button>
+          </div>
         </div>
       )}
     </div>

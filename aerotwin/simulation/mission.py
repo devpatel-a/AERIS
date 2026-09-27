@@ -54,6 +54,7 @@ class MissionConfig(BaseModel):
     sortie_prefix: str = "SORTIE"  # sortie label stem, e.g. "ISR-18H" -> "ISR-18H-B"
     description: str = ""  # one-line mission description for the sortie archive
     engine_id: str = "rotax914_like"
+    origin: str = "preset"  # preset (configs/missions) | plan (saved Mission Planner plan) | draft
     environment: EnvironmentConfig
     segments: list[SegmentConfig]
 
@@ -112,6 +113,16 @@ class MissionRegistry:
     def list_missions(self) -> list[str]:
         """Return all discovered mission ids."""
         return sorted(self._missions)
+
+    def register(self, mission: MissionConfig) -> None:
+        """Add or replace a mission defined at runtime (a saved Mission Planner plan)."""
+        self._missions[mission.mission_id] = mission
+
+    def unregister(self, mission_id: str) -> None:
+        """Remove a runtime mission (YAML presets cannot be removed)."""
+        if mission_id in self._missions and self._missions[mission_id].origin == "preset":
+            raise ValueError(f"'{mission_id}' is a built-in mission preset")
+        self._missions.pop(mission_id, None)
 
 
 @dataclass

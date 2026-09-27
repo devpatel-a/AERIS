@@ -49,6 +49,8 @@ The eight screens and the login page are rebuilt from the Stitch project
 header). Live screens show a "waiting for live telemetry" card when no LIVE
 session is streaming; start one from Simulation Control.
 
+- **Notifications bell** (top bar, every page) — the live session's subsystem
+  alerts; acknowledge one or all (stored with the sortie's alert log).
 - **Live Ops** — anomaly banner, overall engine health + lifetime RUL, subsystem
   tiles, RPM/MAP/fuel/power gauges, per-cylinder CHT/EGT matrix, vibration orders.
 - **Digital Twin** — three.js parametric boxer engine (camera presets, layers:
@@ -59,10 +61,43 @@ session is streaming; start one from Simulation Control.
   (create work orders), RUL prognostics curve, sensor correlation, event log.
 - **Trends & Fleet** — degradation KPIs over the last 20 sorties, fleet status
   table, subsystem health matrix across sorties; CSV export.
-- **Mission Planner** — GO / NO-GO: sliders for altitude, duration, ambient ISA
-  deviation, airspeed and power; runs the full mission on the twin (with the
-  current health estimate if ticked), shows breach points, counter-measures and
-  predicted CHT/oil curves.
+- **Mission Planner** — plan, validate, save and fly missions. The page is laid
+  out in workflow order: a sticky bar shows the five steps (Configure → Route →
+  Calculations → GO/NO-GO → Save & Fly; click a step to jump to it), the current
+  blocking reason or warning, and the Reset / Save / Fly / Run actions; below
+  it come Mission Setup, Flight Path & Waypoints (map, route calculations and
+  waypoint table), Validation + Saved Plans, and the twin GO / NO-GO analysis.
+  - *Mission*: name, identifier (the sortie callsign stem, e.g. `ISR-NORTH` →
+    sorties `ISR-NORTH-01`, …), airframe and mission profile (the preset that
+    sets the mission type, taxi/takeoff/landing and the on-station segment).
+  - *Flight parameters*: altitude, duration, ambient temperature, airspeed,
+    power and the twin-health toggle, as in the Stitch design.
+  - *Flight Path & Waypoints*: click the plan-view map or **Add Waypoint**;
+    drag a marker to move it; **Clear Route** asks to confirm.
+    Waypoints are km east/north of the GCS (AERIS has no geographic base data);
+    edit name, position, altitude, airspeed and hold per row, reorder with the
+    arrows, remove with the bin. Mark one waypoint **ON-STATION**: it loiters for
+    whatever endurance the mission duration leaves after transits, holds, climb
+    and let-down (without one, the mission ends when the route is flown). Each
+    row shows leg distance/bearing, ETA, range from the GCS and datalink margin;
+    the map shows the C2 line-of-sight reach at cruise altitude.
+  - *Validation* runs as you type (backend `POST /api/planner/validate`):
+    airframe envelope (`configs/planner.yaml`), engine limits (turbo critical
+    altitude), datalink radio horizon and link budget, headwind vs airspeed,
+    route vs duration, identifier format/uniqueness, airframe readiness (open
+    maintenance, RUL). Errors disable Save / Run / Fly.
+  - **RUN TWIN SIMULATION** flies the compiled mission on the twin (Monte Carlo
+    health uncertainty + mitigations). If you edit afterwards, the verdict is
+    marked stale until re-run.
+  - **Save Mission / Save Changes** persists the plan (`mission_plans` table)
+    and registers it as mission `plan_NNNN`; saved plans are listed below with
+    their last verdict and flight count — click one to load it (a second click
+    is needed if you have unsaved edits). **Reset** (confirm) returns to the
+    default ISR mission. Deleting is only possible for never-flown plans.
+  - **Fly in Sim Control** starts the saved plan as the live session on its
+    airframe (confirming if it replaces an active flight or the twin says
+    NO-GO) and opens Simulation Control. When the session ends the sortie
+    appears in Mission Replay, Trends and Reports like any other mission.
 - **Mission Replay** — sortie archive per tail, synchronized twin + telemetry
   traces with the anomaly marker, playback, key events, root-cause analysis and
   batch HDF5 export (CRC-32 in the `X-CRC32` header).

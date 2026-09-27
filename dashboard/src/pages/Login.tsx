@@ -4,6 +4,17 @@ import { authApi, type FleetTail, type RoleOption, type SystemStatus } from "../
 import { useAuth } from "../auth/AuthContext";
 
 /** Stitch screen "AeroTwin — Secure Access (Login)". */
+/**
+ * Card size units (`--u`, `--v`): 4px on a 1280x1024 screen (the previous card), growing with the
+ * viewport so the card spans ~31% of its width on large displays, capped by the viewport
+ * height so the card never needs to scroll where it did not before. Only the card's
+ * layout dimensions use it; typography is unchanged.
+ */
+const LOGIN_SCALE = {
+  "--u": "clamp(4px, min(0.1632vw, 0.39vh), 6.5px)", // horizontal: card width = 190u
+  "--v": "calc(4px + (var(--u) - 4px) * 3)", // vertical spacing grows faster so the card keeps its ~1.35 proportion
+} as React.CSSProperties;
+
 export default function Login() {
   const { session, login } = useAuth();
   const navigate = useNavigate();
@@ -107,15 +118,15 @@ export default function Login() {
         </div>
       </header>
 
-      <main className="w-full max-w-[1440px] mx-auto px-margin py-space-xl flex-1 flex flex-col justify-center items-center z-10">
-        <div className="w-full max-w-[620px] bg-surface-container-lowest rounded-xl border border-[#E3E8EF] shadow-aerospace p-8 transition-all relative">
+      <main className="w-full max-w-[1440px] mx-auto px-margin py-space-xl flex-1 flex flex-col justify-center items-center z-10" style={LOGIN_SCALE}>
+        <div className="w-full max-w-[calc(var(--u)*190)] bg-surface-container-lowest rounded-xl border border-[#E3E8EF] shadow-aerospace px-[calc(var(--u)*10)] py-[calc(var(--v)*8)] transition-all relative">
           <div className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-t-xl" />
 
           {/* Brand & System Header */}
-          <div className="flex items-start justify-between pb-space-lg border-b border-[#E3E8EF]">
+          <div className="flex items-start justify-between pb-[calc(var(--v)*4)] border-b border-[#E3E8EF]">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center border border-[#CBD5E1] text-primary">
-                <span className="material-symbols-outlined text-[30px]">4g_mobiledata</span>
+              <div className="w-[calc(var(--u)*14)] h-[calc(var(--u)*14)] rounded-lg bg-surface-container-low flex items-center justify-center border border-[#CBD5E1] text-primary">
+                <span className="material-symbols-outlined text-[34px]">4g_mobiledata</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -147,7 +158,7 @@ export default function Login() {
           </div>
 
           {/* Security Compliance Assurance Badge */}
-          <div className="my-space-md py-2 px-3 bg-[#F8FAFC] border border-[#E3E8EF] rounded-lg flex items-center justify-between text-slate-700">
+          <div className="my-[calc(var(--v)*3)] py-[calc(var(--v)*2.5)] px-[calc(var(--u)*4)] bg-[#F8FAFC] border border-[#E3E8EF] rounded-lg flex items-center justify-between text-slate-700">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[18px]">security</span>
               <span className="font-label-caps text-label-caps tracking-wider text-slate-600 uppercase">{station?.compliance ?? ""}</span>
@@ -158,15 +169,15 @@ export default function Login() {
             </div>
           </div>
 
-          <form className="space-y-space-md mt-4" onSubmit={onSubmit}>
+          <form className="space-y-[calc(var(--v)*3)] mt-[calc(var(--v)*4)]" onSubmit={onSubmit}>
             {/* Role Selector Group */}
             <div>
-              <label className="block font-label-caps text-label-caps text-slate-600 uppercase mb-2">Select Operational Clearance Role</label>
-              <div className="grid grid-cols-1 gap-2" role="radiogroup">
+              <label className="block font-label-caps text-label-caps text-slate-600 uppercase mb-[calc(var(--v)*2)]">Select Operational Clearance Role</label>
+              <div className="grid grid-cols-1 gap-[calc(var(--v)*2.5)]" role="radiogroup">
                 {roles.map((r) =>
                   r.role === role ? (
-                    <label key={r.role} className="relative flex items-center justify-between p-2.5 rounded-lg border-2 border-primary bg-[#F0F5FF] cursor-pointer shadow-sm">
-                      <div className="flex items-center gap-3">
+                    <label key={r.role} className="relative flex items-center justify-between px-[calc(var(--u)*4)] py-[calc(var(--v)*3)] rounded-lg border-2 border-primary bg-[#F0F5FF] cursor-pointer shadow-sm">
+                      <div className="flex items-center gap-3.5">
                         <input checked className="w-4 h-4 text-primary border-primary focus:ring-primary" name="operator_role" type="radio" value={r.role} onChange={() => setRole(r.role)} />
                         <div>
                           <div className="flex items-center gap-2">
@@ -179,8 +190,8 @@ export default function Login() {
                       <span className="material-symbols-outlined text-primary text-[20px]">{r.icon}</span>
                     </label>
                   ) : (
-                    <label key={r.role} className="relative flex items-center justify-between p-2.5 rounded-lg border border-[#E3E8EF] bg-white cursor-pointer hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center gap-3">
+                    <label key={r.role} className="relative flex items-center justify-between px-[calc(var(--u)*4)] py-[calc(var(--v)*3)] rounded-lg border border-[#E3E8EF] bg-white cursor-pointer hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3.5">
                         <input checked={false} className="w-4 h-4 text-primary border-slate-300 focus:ring-primary" name="operator_role" type="radio" value={r.role} onChange={() => setRole(r.role)} />
                         <div>
                           <div className="font-headline-sm text-headline-sm text-on-surface">{r.label}</div>
@@ -195,40 +206,40 @@ export default function Login() {
             </div>
 
             {/* Identity & Credential Fields */}
-            <div className="grid grid-cols-1 gap-3.5 pt-1">
+            <div className="grid grid-cols-1 gap-[calc(var(--v)*3.5)] pt-[calc(var(--v)*1)]">
               <div>
-                <div className="flex justify-between items-center mb-1">
+                <div className="flex justify-between items-center mb-[calc(var(--v)*1.5)]">
                   <label className="font-label-caps text-label-caps text-slate-600 uppercase" htmlFor="dod-id">Operator / DoD ID Number</label>
                   <span className="font-telemetry-sm text-telemetry-sm text-slate-400">EDIPI FORMAT</span>
                 </div>
                 <div className="relative rounded-md shadow-sm">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-[calc(var(--u)*3.5)] text-slate-400">
                     <span className="material-symbols-outlined text-[19px]">badge</span>
                   </div>
                   <input
-                    className="block w-full rounded-md border-[#CBD5E1] pl-10 pr-3 py-2 text-on-surface font-telemetry-md text-telemetry-md focus:border-primary focus:ring-primary sm:text-sm bg-white"
+                    className="block w-full rounded-md border-[#CBD5E1] pl-[calc(var(--u)*10)] pr-3 py-[calc(var(--v)*2.5)] text-on-surface font-telemetry-md text-telemetry-md focus:border-primary focus:ring-primary sm:text-sm bg-white"
                     id="dod-id" placeholder="MIL-XXXX-XXXX" type="text" autoComplete="username" required
                     value={operatorId} onChange={(e) => setOperatorId(e.target.value.toUpperCase())}
                   />
                 </div>
               </div>
               <div>
-                <div className="flex justify-between items-center mb-1">
+                <div className="flex justify-between items-center mb-[calc(var(--v)*1.5)]">
                   <label className="font-label-caps text-label-caps text-slate-600 uppercase" htmlFor="sec-pin">Security Credential / CAC PIN</label>
                   <span className="font-telemetry-sm text-telemetry-sm text-slate-400">6-8 NUMERIC DIGITS</span>
                 </div>
                 <div className="relative rounded-md shadow-sm">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-[calc(var(--u)*3.5)] text-slate-400">
                     <span className="material-symbols-outlined text-[19px]">key</span>
                   </div>
                   <input
                     ref={pinRef}
-                    className="block w-full rounded-md border-[#CBD5E1] pl-10 pr-10 py-2 text-on-surface font-telemetry-md text-telemetry-md focus:border-primary focus:ring-primary sm:text-sm bg-white"
+                    className="block w-full rounded-md border-[#CBD5E1] pl-[calc(var(--u)*10)] pr-[calc(var(--u)*10)] py-[calc(var(--v)*2.5)] text-on-surface font-telemetry-md text-telemetry-md focus:border-primary focus:ring-primary sm:text-sm bg-white"
                     id="sec-pin" placeholder="Enter PIN" type={showPin ? "text" : "password"} autoComplete="current-password"
                     inputMode="numeric" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required
                     value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
                   />
-                  <button className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600" type="button" onClick={() => setShowPin((v) => !v)} aria-label={showPin ? "Hide PIN" : "Show PIN"}>
+                  <button className="absolute inset-y-0 right-0 flex items-center pr-[calc(var(--u)*3.5)] text-slate-400 hover:text-slate-600" type="button" onClick={() => setShowPin((v) => !v)} aria-label={showPin ? "Hide PIN" : "Show PIN"}>
                     <span className="material-symbols-outlined text-[18px]">{showPin ? "visibility_off" : "visibility"}</span>
                   </button>
                 </div>
@@ -236,7 +247,7 @@ export default function Login() {
               {/* CAC / Hardware Token Quick-Select Action (no hardware reader: moves focus to the PIN) */}
               <div className="pt-0.5">
                 <button
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed border-slate-300 hover:border-primary rounded-md bg-slate-50 hover:bg-[#EEF4FF] transition text-slate-700 hover:text-primary font-body-md text-body-md"
+                  className="w-full flex items-center justify-center gap-2 py-[calc(var(--v)*2.5)] px-3 border border-dashed border-slate-300 hover:border-primary rounded-md bg-slate-50 hover:bg-[#EEF4FF] transition text-slate-700 hover:text-primary font-body-md text-body-md"
                   type="button" onClick={() => pinRef.current?.focus()}
                 >
                   <span className="material-symbols-outlined text-[18px] text-primary">cloud_download</span>
@@ -244,13 +255,13 @@ export default function Login() {
                 </button>
               </div>
               <div className="pt-1">
-                <label className="block font-label-caps text-label-caps text-slate-600 uppercase mb-1" htmlFor="engine-assignment">Assigned Airframe &amp; Propulsion Node</label>
+                <label className="block font-label-caps text-label-caps text-slate-600 uppercase mb-[calc(var(--v)*1.5)]" htmlFor="engine-assignment">Assigned Airframe &amp; Propulsion Node</label>
                 <div className="relative rounded-md shadow-sm">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-primary">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-[calc(var(--u)*3.5)] text-primary">
                     <span className="material-symbols-outlined text-[19px]">flight</span>
                   </div>
                   <select
-                    className="block w-full rounded-md border-[#CBD5E1] pl-10 pr-8 py-2 text-on-surface font-telemetry-md text-telemetry-md focus:border-primary focus:ring-primary sm:text-sm bg-white"
+                    className="block w-full rounded-md border-[#CBD5E1] pl-[calc(var(--u)*10)] pr-[calc(var(--u)*8)] py-[calc(var(--v)*2.5)] text-on-surface font-telemetry-md text-telemetry-md focus:border-primary focus:ring-primary sm:text-sm bg-white"
                     id="engine-assignment" value={tailId} onChange={(e) => setTailId(e.target.value)}
                   >
                     {tails.map((t) => (
@@ -263,9 +274,9 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="pt-3">
+            <div className="pt-[calc(var(--v)*3)]">
               <button
-                className="w-full h-11 bg-primary-container text-white font-headline-sm text-headline-sm font-semibold rounded-md shadow hover:bg-[#1748D1] active:bg-[#143DAF] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all flex items-center justify-center gap-2 tracking-wide disabled:opacity-70"
+                className="w-full h-[calc(var(--v)*12)] bg-primary-container text-white font-headline-sm text-headline-sm font-semibold rounded-md shadow hover:bg-[#1748D1] active:bg-[#143DAF] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all flex items-center justify-center gap-2 tracking-wide disabled:opacity-70"
                 type="submit" disabled={submitting}
               >
                 <span className="material-symbols-outlined text-[20px]">fingerprint</span>
@@ -279,7 +290,7 @@ export default function Login() {
               )}
             </div>
 
-            <div className="pt-3 border-t border-[#E3E8EF] flex items-center justify-between text-slate-500 font-telemetry-sm text-telemetry-sm">
+            <div className="pt-[calc(var(--v)*3)] border-t border-[#E3E8EF] flex items-center justify-between text-slate-500 font-telemetry-sm text-telemetry-sm">
               <div className="flex items-center gap-1.5">
                 <span className={`w-1.5 h-1.5 rounded-full ${status?.bus.ready ? "bg-emerald-500" : "bg-red-500"}`} />
                 <span>Sync: {rateHz ?? "--"} Hz {station?.avionics_bus ?? ""}</span>
@@ -296,7 +307,7 @@ export default function Login() {
         </div>
 
         {/* Auxiliary GCS diagnostics bar */}
-        <div className="w-full max-w-[620px] mt-4 flex items-center justify-between px-2 text-slate-500 font-telemetry-sm text-telemetry-sm">
+        <div className="w-full max-w-[calc(var(--u)*190)] mt-4 flex items-center justify-between px-2 text-slate-500 font-telemetry-sm text-telemetry-sm">
           <div className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-primary" />
             <span className="uppercase">Standby Engine Monitor: {selectedTail?.engine_monitor_label ?? "--"}</span>

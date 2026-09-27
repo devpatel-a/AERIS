@@ -1,0 +1,21 @@
+# Mission Planner planning envelope for route validation. The airframe values
+# are approx — replace with the MALE airframe's flight manual (the engine's own
+# limits come from configs/engines/*.yaml).
+airframe:
+  min_airspeed_ktas: 55.0      # approx — ~1.2 × clean stall speed
+  max_airspeed_ktas: 150.0     # approx — structural (Vne) margin
+  service_ceiling_m: 8000.0    # approx — airframe certified ceiling
+  min_route_altitude_m: 300.0  # approx — minimum safe en-route altitude above the launch site
+  climb_rate_mps: 3.0          # approx — mean climb rate at max continuous power
+  descent_rate_mps: 2.5        # approx — mean descent rate for the let-down
+limits:
+  min_duration_h: 2.0
+  max_duration_h: 24.0
+  min_power_pct_mcp: 30.0
+  max_power_pct_mcp: 100.0
+  min_surface_temp_c: -40.0
+  max_surface_temp_c: 50.0
+  max_waypoints: 12
+  max_waypoint_range_km: 400.0  # sanity bound on coordinates entered in the plan frame
+  link_margin_warn_db: 6.0      # warn when the datalink margin at a waypoint drops below this
+  min_leg_km: 0.5               # shorter legs are treated as duplicate waypoints

@@ -152,7 +152,9 @@ export default function SimulationControl() {
                         disabled={!running || !!busy}
                         onClick={() => call("atmo", "/api/sim/atmosphere", "POST", { preset: k })}
                       >
-                        {a.label}
+                        {k === "isa" && s?.mission_origin === "plan"
+                          ? `Planned Env (ISA ${s.mission_isa_deviation_k >= 0 ? "+" : ""}${fmt(s.mission_isa_deviation_k)})`
+                          : a.label}
                       </button>{" "}
                     </span>
                   ))}

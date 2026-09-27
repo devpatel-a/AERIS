@@ -1,4 +1,5 @@
 /* Stitch screen "AeroTwin — Screen 1: Live Ops", bound to the live telemetry stream. */
+import { useId } from "react";
 import { useNavigate } from "react-router-dom";
 import { request } from "../lib/api";
 import { useEngineConfig, type EngineConfigView } from "../lib/useEngineConfig";
@@ -220,41 +221,90 @@ function SamplingTile({ row }: { row: LiveRow }) {
 }
 
 /* ---------------------------------------------------------------- gauges */
-function arcPoint(f: number): string {
-  const t = Math.PI * (1 - Math.min(Math.max(f, 0.001), 1));
-  return `${(50 + 40 * Math.cos(t)).toFixed(1)} ${(50 - 40 * Math.sin(t)).toFixed(1)}`;
+// Instrument geometry, in px of the 176 x 96 gauge box (drawn 1:1 for crisp strokes).
+const G = { w: 176, h: 96, cx: 88, cy: 86, r: 72, arcW: 7 };
+
+/** Point on the gauge circle at fraction f (0 = left stop, 1 = right stop) and radius r. */
+function gaugePt(f: number, r: number): [number, number] {
+  const t = Math.PI * (1 - f);
+  return [G.cx + r * Math.cos(t), G.cy - r * Math.sin(t)];
+}
+
+/** SVG arc path along the gauge circle from fraction f0 to f1. */
+function gaugeArc(f0: number, f1: number, r = G.r): string {
+  const [x0, y0] = gaugePt(f0, r);
+  const [x1, y1] = gaugePt(f1, r);
+  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
 function Gauge({
-  title, meta, metaClass = "text-[#64748B]", fraction, color, needleDot, value, unit, status, statusClass, limitFraction,
+  title, meta, metaClass = "text-[#64748B]", fraction, color, value, unit, status, statusClass, limitFraction,
 }: {
-  title: string; meta: string; metaClass?: string; fraction: number; color: string; needleDot: string; value: string; unit: string;
+  title: string; meta: string; metaClass?: string; fraction: number; color: string; needleDot?: string; value: string; unit: string;
   status: string; statusClass: string; limitFraction?: number;
 }) {
   const f = Math.min(Math.max(fraction, 0), 1);
-  const lim = limitFraction != null ? Math.PI * (1 - limitFraction) : null;
+  const lim = limitFraction != null ? Math.min(Math.max(limitFraction, 0), 1) : null;
+  const id = `gauge${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const ticks = Array.from({ length: 19 }, (_, k) => (k + 1) / 20); // minor every 5 %, major every 25 % (end stops omitted)
+  const inner = G.r - G.arcW / 2 - 3; // tick ring sits just inside the arc
+  const [tx, ty] = gaugePt(f, G.r);
   return (
     <div className="bg-white border border-[#E3E8EF] rounded-xl p-space-md custom-shadow-card flex flex-col items-center">
       <div className="w-full flex items-center justify-between border-b border-[#F1F5F9] pb-space-xs">
         <span className="text-label-caps font-label-caps text-[#94A3B8]">{title}</span>
         <span className={`font-telemetry-sm text-[10px] ${metaClass}`}>{meta}</span>
       </div>
-      <div className="relative w-44 h-24 my-2 flex items-end justify-center overflow-hidden">
-        <svg className="w-44 h-44 -rotate-180 transform" viewBox="0 0 100 100">
-          <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#E2E8F0" strokeLinecap="round" strokeWidth="8" />
-          <path d={`M 10 50 A 40 40 0 0 1 ${arcPoint(f)}`} fill="none" stroke={color} strokeLinecap="round" strokeWidth="8" />
-          {lim != null && (
-            <line stroke="#DC2626" strokeWidth="2" x1={50 + 38 * Math.cos(lim)} x2={50 + 34 * Math.cos(lim)} y1={50 - 38 * Math.sin(lim)} y2={50 - 34 * Math.sin(lim)} />
-          )}
+      <div className="relative w-44 h-24 my-2">
+        <svg className="w-44 h-24 overflow-visible" viewBox={`0 0 ${G.w} ${G.h}`} shapeRendering="geometricPrecision" aria-hidden="true">
+          <defs>
+            <linearGradient id={`${id}-arc`} x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0" stopColor={color} stopOpacity="0.55" />
+              <stop offset="1" stopColor={color} />
+            </linearGradient>
+            <filter id={`${id}-shadow`} x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="0.6" stdDeviation="0.7" floodColor="#0F172A" floodOpacity="0.25" />
+            </filter>
+          </defs>
+          {/* Inactive track, with the region beyond the limit tinted as a caution zone. */}
+          <path d={gaugeArc(0, 1)} fill="none" stroke="#EDF1F6" strokeLinecap="round" strokeWidth={G.arcW} />
+          {lim != null && lim < 1 && <path d={gaugeArc(lim, 1)} fill="none" stroke="#FCA5A5" strokeOpacity="0.45" strokeWidth={G.arcW} />}
+          {/* Active value arc. */}
+          {f > 0.002 && <path d={gaugeArc(0, f)} fill="none" stroke={`url(#${id}-arc)`} strokeLinecap="round" strokeWidth={G.arcW} />}
+          {/* Scale. */}
+          {ticks.map((t) => {
+            const major = Math.round(t * 20) % 5 === 0;
+            const [x0, y0] = gaugePt(t, inner);
+            const [x1, y1] = gaugePt(t, inner - (major ? 6 : 3.5));
+            const warn = lim != null && t > lim + 1e-6;
+            return (
+              <line key={t} x1={x0} y1={y0} x2={x1} y2={y1} strokeLinecap="round"
+                stroke={warn ? "#F87171" : major ? "#94A3B8" : "#CBD5E1"} strokeWidth={major ? 1.2 : 0.8} />
+            );
+          })}
+          {/* Limit marker: a red hairline across the arc and scale. */}
+          {lim != null && (() => {
+            const [a0, b0] = gaugePt(lim, G.r + G.arcW / 2 + 2);
+            const [a1, b1] = gaugePt(lim, inner - 6);
+            return <line x1={a0} y1={b0} x2={a1} y2={b1} stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round" />;
+          })()}
+          {/* Value marker on the arc end. */}
+          <circle cx={tx} cy={ty} r="2.2" fill="#FFFFFF" stroke={color} strokeWidth="1.5" />
+          {/* Pointer: thin tapered needle with a short tail, rotated about the hub. */}
+          <g style={{ transform: `rotate(${(f * 180 - 90).toFixed(2)}deg)`, transformOrigin: `${G.cx}px ${G.cy}px`, transition: "transform 450ms cubic-bezier(0.22, 1, 0.36, 1)" }} filter={`url(#${id}-shadow)`}>
+            <polygon fill="#1E293B" points={`${G.cx - 1.6},${G.cy} ${G.cx - 0.35},${G.cy - (inner - 9)} ${G.cx + 0.35},${G.cy - (inner - 9)} ${G.cx + 1.6},${G.cy} ${G.cx + 0.9},${G.cy + 8} ${G.cx - 0.9},${G.cy + 8}`} />
+          </g>
+          {/* Hub. */}
+          <circle cx={G.cx} cy={G.cy} r="5" fill="#FFFFFF" stroke={color} strokeWidth="2" />
+          <circle cx={G.cx} cy={G.cy} r="1.6" fill="#1E293B" />
         </svg>
-        <div className="absolute bottom-0 w-1 h-20 bg-[#0F172A] origin-bottom transform rounded-t" style={{ transform: `rotate(${(f * 180 - 90).toFixed(1)}deg)` }} />
-        <div className={`absolute bottom-0 w-3 h-3 ${needleDot} rounded-full ring-2 ring-white`} />
       </div>
       <div className="text-center">
-        <div className="font-telemetry-xl text-telemetry-xl text-[#0F172A] font-bold">
-          {value} <span className="text-telemetry-sm font-normal text-[#64748B]">{unit}</span>
+        <div className="font-telemetry-xl text-telemetry-xl text-[#0F172A] font-bold tracking-tight tabular-nums">
+          {value}
+          <span className="ml-1.5 text-telemetry-sm font-medium tracking-wide text-[#64748B]">{unit}</span>
         </div>
-        <span className={`text-label-caps text-[10px] font-semibold px-2 py-0.5 rounded ${statusClass}`}>{status}</span>
+        <span className={`inline-block text-label-caps text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-full ${statusClass}`}>{status}</span>
       </div>
     </div>
   );

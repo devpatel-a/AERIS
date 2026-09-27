@@ -383,6 +383,15 @@ function Transport({ pos, duration, playing, setPlaying, speed, setSpeed, seek, 
   const hours = Math.floor(duration / 3600);
   const ticks = Array.from({ length: Math.min(hours, 6) + 1 }, (_, i) => (i * duration) / (Math.min(hours, 6) + 1));
   const firstAnomaly = markers.find((m: any) => m.kind === "DETECTED" || m.kind === "AI_DIAGNOSIS");
+  const clusters = useMemo(() => {
+    const out: any[][] = [];
+    for (const m of markers) {
+      const last = out[out.length - 1];
+      if (last && duration > 0 && (m.t_s - last[0].t_s) / duration < 0.01) last.push(m);
+      else out.push([m]);
+    }
+    return out;
+  }, [markers, duration]);
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-sm shadow-sm flex flex-col gap-2 shrink-0">
       <div className="flex items-center justify-between">
@@ -428,11 +437,14 @@ function Transport({ pos, duration, playing, setPlaying, speed, setSpeed, seek, 
         <div className="absolute top-1.5 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30" style={{ left: pct(pos) }}>
           <div className="w-3.5 h-6 bg-amber-500 rounded-sm shadow-md border-2 border-white cursor-grab" />
         </div>
-        {markers.map((m: any, i: number) => {
+        {clusters.map((group: any[], i: number) => {
+          // Markers closer than 1% of the timeline share one dot (they would overlap and hide each other);
+          // the dot takes the most important event's style and the tooltip lists every event.
+          const m = group.find((x) => x === firstAnomaly) ?? group[0];
           const [dot, tip] = MARKER[m.kind] ?? MARKER.PHASE;
-          const pinned = m === firstAnomaly;
+          const pinned = group.includes(firstAnomaly);
           return (
-            <div key={i} onClick={() => seek(m.t_s)} className={`absolute top-1 -translate-x-1/2 group cursor-pointer ${pinned ? "z-20" : ""}`} style={{ left: pct(m.t_s) }} title={`${fmtHms(m.t_s)} - ${m.title}`}>
+            <div key={i} onClick={() => seek(group[0].t_s)} className={`absolute top-1 -translate-x-1/2 group cursor-pointer ${pinned ? "z-20" : ""}`} style={{ left: pct(group[0].t_s) }} title={group.map((x) => `${fmtHms(x.t_s)} - ${x.title}`).join("\n")}>
               <div className={`rounded-full border-2 border-white group-hover:scale-125 transition-transform ${dot}`} />
               <div className={`${pinned ? "" : "hidden group-hover:block"} absolute bottom-5 left-1/2 -translate-x-1/2 ${tip} text-white text-[9px] font-telemetry-sm px-1.5 py-0.5 rounded whitespace-nowrap z-40 shadow-md`}>
                 {pinned ? "▲ " : ""}{fmtHms(m.t_s)} {m.title}

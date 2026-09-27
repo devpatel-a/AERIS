@@ -445,3 +445,38 @@ this log used.
 - **Report divergence chart** uses airborne samples after 900 s only.
 - **Twin confidence in seeded reports** is "--": the history seeder runs the twin
   open-loop (no UKF) for speed, so there is no estimator confidence to report.
+
+## Mission Planner as a real planning tool
+
+- **One mission system.** A saved plan (`mission_plans`) stores the planner form
+  and its compiled `MissionConfig`, registered in the app's `MissionRegistry` as
+  `plan_NNNN` (loaded at API start). Sessions, replay, fleet history and reports
+  resolve it like a YAML preset; presets are the *mission types*
+  (`MissionConfig.origin == "preset"`), plans are never offered as types.
+- **Plan frame, not geography.** AERIS has no base coordinates, so waypoints are
+  km east/north of the GCS. Leg ground speed = TAS − the template's mean headwind
+  on every transit leg (conservative; the headwind the Stitch "Headwind" factor
+  shows). Climb/descent times use the airframe climb/descent rates in
+  `configs/planner.yaml` (approx — replace with the flight manual).
+- **Route → segments.** taxi/takeoff (template) → climb → one `transit` per leg,
+  a `hold` at waypoints with a hold time, the station waypoint's hold named after
+  the template's on-station segment (`loiter`, `cap_station`, …) and absorbing
+  the remaining endurance → `transit_home` → descent → landing (template).
+- **Datalink check** uses the station budget: free-space margin at the slant range
+  from the GCS mast and the 4/3-earth radio horizon (`gcs_antenna_height_m`).
+- **Edits invalidate the stored verdict**; a plan in flight cannot be edited and a
+  flown plan cannot be deleted (replay/history keep its mission definition).
+- **Twin evaluation** of a routed plan keeps power and surface temperature as
+  overrides so the "GO with condition" re-run can still vary them.
+
+## Interaction fixes (click audit)
+
+- Notifications bell had no handler: now a popover of the session's alerts with
+  acknowledge (`POST /api/alerts/ack`, persisted in the `alerts.acknowledged`
+  column when the sortie is saved); the dot shows unacknowledged alerts.
+- Digital Twin camera presets could not re-snap after orbiting/panning (clicking
+  the selected preset did nothing): presets now always re-frame and reset the pan.
+- Mission Replay timeline markers seconds apart overlapped and hid each other:
+  markers closer than 1 % of the timeline are clustered (tooltip lists all).
+- Simulation Control labels the "Standard Day" chip as the plan's own environment
+  when flying a saved plan.
