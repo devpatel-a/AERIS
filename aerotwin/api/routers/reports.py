@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,14 +12,16 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from aerotwin.api.deps import jsonable, operator_name
-from aerotwin.api.security import require_token
+from aerotwin.api.security import current_session, require_token
 from aerotwin.api.state import get_app_state
+from aerotwin.auth.service import AuthSession
 from aerotwin.reports import registry
 from aerotwin.reports.stanag_pdf import render_report_pdf
 from aerotwin.storage.db import DATA_DIR
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 Operator = Annotated[str | None, Depends(operator_name)]
+SignedIn = Annotated[AuthSession, Depends(current_session)]
 REPORT_DIR = DATA_DIR / "reports"
 
 
@@ -64,6 +68,7 @@ def reports_options(tail_id: str | None = None) -> dict:
     missions = [dict(r) for r in rows]
     session = state.session
     if session is not None and session.tail_id == tail_id:
+        missions = [m for m in missions if m["mission_run_id"] != session.run_id]
         missions.insert(0, {"mission_run_id": session.run_id, "sortie_label": session.sortie_label,
                             "mission_id": session.mission.mission_id, "current": True})
     return {"missions": missions, "compliance": list(registry.COMPLIANCE), "compliance_edition": "STANAG 4671 Ed.3"}
@@ -83,16 +88,33 @@ async def reports_create(req: CreateReport, operator: Operator) -> dict:
     return jsonable(report)
 
 
+def _render_pdf(report: dict) -> Path:
+    """Render (or reuse) the STANAG PDF for the report's current state (status + signatures)."""
+    key = f"{report['status']}|{report.get('signed_at')}|{report.get('maint_signed_at')}|{report.get('dispatched_at')}"
+    out = REPORT_DIR / f"{report['content'].get('ref', report['report_id'])}.pdf"
+    stamp = out.with_suffix(".state")
+    if not (out.exists() and stamp.exists() and stamp.read_text() == key):
+        render_report_pdf(report, get_app_state().station.model_dump(), out)
+        stamp.write_text(key)
+    return out
+
+
 @router.get("/{report_id}")
 def reports_get(report_id: str) -> dict:
-    return jsonable(_get(report_id))
+    """The stored report plus what the preview frame shows: the PDF page count and the GCS build."""
+    report = _get(report_id)
+    pdf = _render_pdf(report)
+    station = get_app_state().station
+    report["pdf_file"] = pdf.name
+    report["pdf_pages"] = len(re.findall(rb"/Type\s*/Page(?!s)", pdf.read_bytes()))
+    report["software_version"] = station.software_version
+    report["dispatch_recipient"] = station.operator_callsign
+    return jsonable(report)
 
 
 @router.get("/{report_id}/pdf")
 def reports_pdf(report_id: str) -> FileResponse:
-    report = _get(report_id)
-    out = REPORT_DIR / f"{report['content'].get('ref', report_id)}.pdf"
-    render_report_pdf(report, get_app_state().station.model_dump(), out)
+    out = _render_pdf(_get(report_id))
     return FileResponse(out, media_type="application/pdf", filename=out.name)
 
 
@@ -113,12 +135,21 @@ def reports_dispatch(report_id: str) -> dict:
     return jsonable(registry.dispatch(get_app_state(), report_id, get_app_state().station.operator_callsign))
 
 
-@router.post("/{report_id}/sign", dependencies=[Depends(require_token)])
-def reports_sign(report_id: str, operator: Operator) -> dict:
+class SignRequest(BaseModel):
+    slot: str = "engineering"  # engineering | maintenance
+
+
+@router.post("/{report_id}/sign")
+def reports_sign(report_id: str, req: SignRequest, session: SignedIn) -> dict:
+    """Sign a sign-off slot; the operator must hold the slot's clearance role in this session."""
     _get(report_id)
-    if not operator:
-        raise HTTPException(status_code=403, detail="A signed-in operator is required to sign")
-    return jsonable(registry.sign(get_app_state(), report_id, operator))
+    role = registry.SIGN_SLOTS.get(req.slot, (None,))[0]
+    if role is None:
+        raise HTTPException(status_code=400, detail=f"Unknown signature slot '{req.slot}'")
+    if session.role != role:
+        raise HTTPException(status_code=403, detail=f"The {req.slot} sign-off requires the {role.replace('_', ' ')} clearance role")
+    op = session.operator
+    return jsonable(registry.sign(get_app_state(), report_id, op.display_name, op.operator_id, req.slot))
 
 
 @router.patch("/{report_id}/status", dependencies=[Depends(require_token)])

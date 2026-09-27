@@ -194,7 +194,9 @@ def diagnostics_rul_curve() -> dict:
     prog = session.prognosis
     if prog is None:
         hours, values = session.rul_history
-        prog = prognose([*hours, session.engine_hours], [*values, session.health_ewma or 100.0], state.prognostics_config)
+        if session.health_ewma is not None:
+            hours, values = [*hours, session.engine_hours], [*values, session.health_ewma]
+        prog = prognose(hours, values, state.prognostics_config)
     return jsonable(prog.__dict__)
 
 

@@ -72,7 +72,8 @@ def sorties(state: AppState, tail_id: str | None, query: str = "", category: str
         anomaly = next((e for e in events if e["kind"] in ("DETECTED", "AI_DIAGNOSIS")), None)
 
         if active:
-            hi_start = session.rows[0]["health_index"] if session.rows else None
+            stable = [r for r in session.rows if r.get("segment") not in ("taxi", "takeoff")]
+            hi_start = (stable or session.rows)[0]["health_index"] if session.rows else None
             hi_end = session.health_ewma
             worst = state.buffer.latest().get("health_risk") if state.buffer.latest() else None
             flight_h = session.t / 3600.0

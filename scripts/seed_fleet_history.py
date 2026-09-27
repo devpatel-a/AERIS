@@ -122,8 +122,10 @@ def simulate_sortie(job: dict) -> dict:
             x = np.array([[window_feats.get(c, 0.0) for c in classifier.feature_cols]])
             proba = classifier.predict_proba(x)[0]
             k = int(np.argmax(proba))
+            prev_fault = diag_fault
             diag_fault, diag_conf = str(classifier.encoder.classes_[k]), float(proba[k])
-            if diag_fault != "healthy" and diag_conf >= DETECT_P and detected_t is None and seg not in ("taxi", "takeoff"):
+            armed = seg not in ("taxi", "takeoff") and t >= 900
+            if armed and diag_fault != "healthy" and diag_fault == prev_fault and diag_conf >= DETECT_P and detected_t is None:
                 detected_t = t
                 events.append({"t_s": t, "kind": "AI_DIAGNOSIS", "title": f"Fault isolated: {diag_fault.replace('_', ' ')}.",
                                "detail": f"Confidence: {diag_conf * 100:.1f}%"})
@@ -315,15 +317,19 @@ def _seed_reports(db) -> None:
     last07 = db.execute("SELECT mission_run_id FROM missions WHERE tail_id = 'UAV-07' AND notes = ? AND kind = 'operational' "
                         "ORDER BY start_time DESC LIMIT 1", (SEED_NOTE,)).fetchone()
     plans = [
-        ("fleet", {"focus": "turbo_air"}, "ARCHIVED", 7),
+        # Oldest first, so report numbers follow issue dates.
         ("scheduled_maintenance", {"tail_id": "UAV-02"}, "WORK_ORDER_ISSUED", 14),
+        ("fleet", {"focus": "turbo_air"}, "ARCHIVED", 7),
         ("scheduled_maintenance", {"tail_id": "UAV-03"}, "APPROVED", 2),
     ]
     if last07:
         plans.append(("post_mission", {"mission_run_id": last07["mission_run_id"]}, "PENDING_REVIEW", 0.3))
     for rtype, kwargs, status, days_ago in plans:
         try:
-            registry.generate(state, rtype, "history-seeder", created_at=now - days_ago * 86400, status=status, **kwargs)
+            rep = registry.generate(state, rtype, "history-seeder", created_at=now - days_ago * 86400, status=status, **kwargs)
+            if rtype == "post_mission":
+                # The chief propulsion engineer has countersigned the debrief; maintenance sign-off is pending.
+                registry.sign(state, rep["report_id"], "Capt. M. Vance", "MIL-2210-VANCE", "engineering")
         except Exception as exc:  # report generation is best-effort for seeding
             print(f"  report {rtype} skipped: {exc}")
 

@@ -33,6 +33,8 @@ PREDICTED_P = 0.2
 MONITOR_P = 0.08
 ANOMALY_SCORE_SCALE = 5.0  # EWMA z at which the score saturates toward 1
 ANOMALY_SCORE_ALARM = 0.45
+CLASSIFIER_LABEL = "XGBoost fault classifier"
+ARM_MAX_WAIT_S = 900.0  # arm detection by this mission time even if the estimator is still converging
 LIMIT_WARNING_S = 20 * 60.0  # warn when the projected time-to-limit drops below this
 TREND_WINDOW_S = 1800.0
 
@@ -119,15 +121,26 @@ class LiveAnalytics:
         self.limit_warned = False
         self.limit_crossed_t: float | None = None
         self.kalman_converged = False
+        self._t = 0.0
         self.score_hist: deque = deque(maxlen=1200)  # 1 Hz (t, score)
         self.series: dict[str, deque] = {}  # 1 Hz measured/expected pairs per channel for correlation
         self.max_cht_hist: deque = deque(maxlen=900)  # 1 Hz (t, max CHT K)
         self._last_1hz = -1e9
         self.last_diag_fault: str | None = None
+        self._last_pred: str | None = None
         self.last_rul: float | None = None
         self.muted_until_wall: float = 0.0
 
     # ------------------------------------------------------------------ events
+    @property
+    def armed(self) -> bool:
+        """Detection is armed once the engine is past start-up/taxi and the estimator has
+        converged, or has had ARM_MAX_WAIT_S to settle (a fault present from early in the
+        flight can keep the confidence below the convergence mark indefinitely).
+        """
+        settled = self.kalman_converged or self._t >= ARM_MAX_WAIT_S
+        return settled and self.phase not in (None, "taxi", "takeoff")
+
     def add_event(self, t_s: float, kind: str, title: str, detail: str = "", **extra: Any) -> dict:
         event = {"t_s": float(t_s), "wall_ts": time.time(), "kind": kind, "title": title, "detail": detail, **extra}
         self.events.append(event)
@@ -146,6 +159,10 @@ class LiveAnalytics:
     def on_rul(self, t_s: float, rul_hours: float | None) -> None:
         if rul_hours is None:
             return
+        if not self.armed:
+            # Start-up transients are not degradation: the first armed estimate is the baseline.
+            self.last_rul = None
+            return
         prev = self.last_rul
         # Only announce sustained, material revisions (>=10% and >=20 h, at most every 10 sim-minutes).
         recent = any(e["kind"] == "RUL_UPDATE" and t_s - e["t_s"] < 600.0 for e in self.events[-20:])
@@ -161,7 +178,16 @@ class LiveAnalytics:
             self.last_rul = rul_hours
 
     def on_classification(self, t_s: float, probs: dict[str, float], predicted: str, confidence: float) -> None:
-        """Record a classifier cycle's class probabilities."""
+        """Record a classifier cycle's class probabilities.
+
+        Ignored until the estimator has converged and the engine is past start-up
+        (cold-start transients are not fault evidence); a diagnosis is announced only
+        after two consecutive cycles agree.
+        """
+        if not self.armed:
+            return
+        prev_pred = self._last_pred
+        self._last_pred = predicted
         self.probs = {k: v for k, v in probs.items() if k != "healthy"}
         for fault, p in self.probs.items():
             track = self.tracks.setdefault(fault, FaultTrack())
@@ -169,12 +195,13 @@ class LiveAnalytics:
             if state != "NONE" and track.first_detected_t is None:
                 track.first_detected_t = t_s
             track.history.append((t_s, p))
-        if predicted != "healthy" and predicted != self.last_diag_fault and confidence >= ACTIVE_P:
+        if predicted != "healthy" and predicted == prev_pred and predicted != self.last_diag_fault and confidence >= ACTIVE_P:
             self.add_event(
                 t_s, "AI_DIAGNOSIS", f"Fault isolated: {self.kb.fault_label(predicted)}.",
-                f"Confidence: {confidence * 100:.1f}%", fault_type=predicted, confidence=confidence,
+                f"Confidence: {confidence * 100:.1f}%", fault_type=predicted, confidence=confidence, model=CLASSIFIER_LABEL,
             )
-        self.last_diag_fault = predicted
+        if predicted == prev_pred:
+            self.last_diag_fault = predicted
 
     # ------------------------------------------------------------------ tick
     def on_tick(
@@ -192,6 +219,7 @@ class LiveAnalytics:
         detector_ewma: dict[str, float],
     ) -> dict[str, Any]:
         """Update analytics for one twin step; returns fields to merge into the live row."""
+        self._t = t_s
         self._phase_events(t_s, phase, altitude_m)
         if not self.kalman_converged and confidence_pct >= 95.0:
             self.kalman_converged = True
@@ -261,7 +289,7 @@ class LiveAnalytics:
     def _detection(self, t_s: float, result: Any, ttl: float | None, max_cht: float | None) -> None:
         # Armed only once the estimator has converged and the engine is past
         # start-up/taxi, so warm-up transients are not reported as detections.
-        armed = self.kalman_converged and self.phase not in (None, "taxi", "takeoff")
+        armed = self.armed
         residual_alarm = any(result.alarms.get(c) for c in SCORE_CHANNELS)
         classifier_active = any(p >= ACTIVE_P for p in self.probs.values())
         if armed and self.detect_t is None and (residual_alarm or classifier_active):
@@ -269,9 +297,10 @@ class LiveAnalytics:
             self.detect_lead_s = ttl
             top = self._top_residual(result, SCORE_CHANNELS)
             resid = result.residuals.get(top, 0.0) if top else 0.0
+            unit = " °C" if top and top.endswith("_k") else " kPa" if top and top.endswith("_kpa") else ""
             self.add_event(
                 t_s, "DETECTED",
-                f"Digital Twin anomaly flagged: '{channel_label(top) if top else 'residual'} divergence ({resid:+.1f})'.",
+                f"Digital Twin anomaly flagged: '{channel_label(top) if top else 'residual'} residual divergence ({resid:+.1f}{unit})'.",
                 "", channel=top, residual=resid,
             )
         if max_cht is not None and max_cht >= self.config.limits.max_cht_k and self.limit_crossed_t is None:
@@ -279,7 +308,7 @@ class LiveAnalytics:
             self.add_event(t_s, "THRESHOLD", "CHT exceedance threshold flag", f"{max_cht - 273.15:.1f} °C ≥ {self.config.limits.max_cht_k - 273.15:.0f} °C limit")
             if self.detect_t is not None and self.detect_lead_s is None:
                 self.detect_lead_s = t_s - self.detect_t
-        if ttl is not None and ttl <= LIMIT_WARNING_S and not self.limit_warned and self.limit_crossed_t is None:
+        if armed and ttl is not None and ttl <= LIMIT_WARNING_S and not self.limit_warned and self.limit_crossed_t is None:
             self.limit_warned = True
             self.add_event(t_s, "LIMIT_WARNING", "Digital Twin Limit Warning", f"Model predicts redline breach in {ttl / 60:.0f}m", ttl_s=ttl)
 

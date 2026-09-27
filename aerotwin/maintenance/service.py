@@ -89,6 +89,7 @@ class TaskDue:
     ata: str
     location: str
     last_completed_hours: float | None = None
+    interval_hours: float | None = None
 
 
 @dataclass
@@ -236,7 +237,7 @@ def scheduled_due(db: sqlite3.Connection, kb: MaintenanceKB, tail_id: str, engin
         # Periodic: a task never completed is due at the next multiple of its interval.
         if last is None:
             due_in = task.interval_hours - (engine_hours_now % task.interval_hours)
-        out.append(TaskDue(task.key, task.title, float(due_in), task.ata, task.location, last))
+        out.append(TaskDue(task.key, task.title, float(due_in), task.ata, task.location, last, task.interval_hours))
     out.sort(key=lambda t: t.due_in_hours)
     return out
 

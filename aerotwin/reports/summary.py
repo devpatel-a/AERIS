@@ -103,7 +103,10 @@ def compute_post_flight_summary(df: pd.DataFrame, config: EngineConfig) -> Missi
     health_start = {c.replace("health_", ""): float(df[c].iloc[0]) for c in health_cols} if n else {}
     health_end = {c.replace("health_", ""): float(df[c].iloc[-1]) for c in health_cols} if n else {}
 
-    health_index_start = float(df["health_index"].iloc[0]) if "health_index" in df.columns and n else None
+    # Start-of-sortie health: first stabilized sample after start-up (taxi/takeoff are transients).
+    stable = df[~df["segment"].isin({"taxi", "takeoff"})] if "segment" in df.columns else df
+    first = stable if len(stable) else df
+    health_index_start = float(first["health_index"].iloc[0]) if "health_index" in df.columns and n else None
     health_index_end = float(df["health_index"].iloc[-1]) if "health_index" in df.columns and n else None
     health_index_min = float(df["health_index"].min()) if "health_index" in df.columns and n else None
 
@@ -127,7 +130,8 @@ def compute_post_flight_summary(df: pd.DataFrame, config: EngineConfig) -> Missi
 
     subsystem_cols = [c for c in df.columns if c.startswith("subsystem_")]
     subsystem_index_end = {c.replace("subsystem_", ""): float(df[c].iloc[-1]) for c in subsystem_cols} if n else {}
-    rul_hours_end = float(df["rul_mean_hours"].iloc[-1]) if "rul_mean_hours" in df.columns and n else None
+    rul_known = pd.to_numeric(df["rul_mean_hours"], errors="coerce").dropna() if "rul_mean_hours" in df.columns else pd.Series(dtype=float)
+    rul_hours_end = float(rul_known.iloc[-1]) if len(rul_known) else None
 
     extras = _trend_and_extremes(df, config)
 

@@ -20,7 +20,7 @@ from aerotwin.storage.parquet_store import DEFAULT_MISSION_LOG_DIR
 from aerotwin.twin.config import EngineConfig, EngineRegistry
 from aerotwin.twin.fleet import FleetRegistry, TailConfig
 
-SUMMARY_VERSION = 4  # bump when MissionSummary gains fields, to recompute cached summaries
+SUMMARY_VERSION = 5  # bump when MissionSummary gains fields, to recompute cached summaries
 _SUMMARY_FIELDS = {f.name for f in fields(MissionSummary)}
 
 

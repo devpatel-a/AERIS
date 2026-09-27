@@ -44,12 +44,15 @@ REPORT_TYPES = {
 }
 STATUSES = ("PENDING_REVIEW", "APPROVED", "ARCHIVED", "WORK_ORDER_ISSUED")
 COMPLIANCE = ("STANAG 4671 PDF", "HDF5 Raw Sensor Dump", "MIL-STD-1553B JSON")
+from aerotwin.twin.live_analytics import ARM_MAX_WAIT_S  # noqa: E402
+
 FIXED_SEGMENTS = {"taxi", "takeoff", "climb", "descent", "landing"}
 
 
 def _next_report_id(state: AppState) -> str:
     year = time.strftime("%Y", time.gmtime())
-    n = state.db.execute("SELECT COUNT(*) FROM reports WHERE report_id LIKE ?", (f"REP-{year}-%",)).fetchone()[0]
+    ids = state.db.execute("SELECT report_id FROM reports WHERE report_id LIKE ?", (f"REP-{year}-%",)).fetchall()
+    n = max((int(r[0].rsplit("-", 1)[1]) for r in ids if r[0].rsplit("-", 1)[1].isdigit()), default=0)
     return f"REP-{year}-{n + 1:03d}"
 
 
@@ -108,11 +111,16 @@ def _mission_content(state: AppState, run_id: str, subsystems: list[str], includ
     div = None
     cyl = None
     exp_cols = [f"expected_cht_{i}_k" for i in range(1, 5)]
-    if all(c in df.columns for c in exp_cols):
-        deltas = {i: (df[f"cht_{i}_k"] - df[f"expected_cht_{i}_k"]) for i in range(1, 5)}
+    # Airborne samples after the detector's arming time only: start-up/taxi/landing
+    # transients and the estimator's convergence period are not twin divergence.
+    air = df[(~df["segment"].isin(("taxi", "takeoff", "landing"))) & (df["t_s"] >= ARM_MAX_WAIT_S)] if "segment" in df.columns else df
+    if air.empty:
+        air = df
+    if all(c in air.columns for c in exp_cols):
+        deltas = {i: (air[f"cht_{i}_k"] - air[f"expected_cht_{i}_k"]) for i in range(1, 5)}
         cyl = max(deltas, key=lambda i: float(deltas[i].max()))
-        step = max(1, len(df) // 240)
-        d = df.iloc[::step]
+        step = max(1, len(air) // 240)
+        d = air.iloc[::step]
         div = {
             "cylinder": cyl, "t_s": d["t_s"].tolist(),
             "measured_k": d[f"cht_{cyl}_k"].tolist(), "expected_k": d[f"expected_cht_{cyl}_k"].tolist(),
@@ -137,7 +145,7 @@ def _mission_content(state: AppState, run_id: str, subsystems: list[str], includ
         map_ok = None
         if div is not None:
             i = int(np.argmax(np.array(div["measured_k"]) - np.array(div["expected_k"])))
-            j = df.index[min(i * max(1, len(df) // 240), len(df) - 1)]
+            j = air.index[min(i * max(1, len(air) // 240), len(air) - 1)]
             rpm = float(df.loc[j, "rpm"]) if "rpm" in df.columns else None
             if "expected_map_kpa" in df.columns:
                 map_ok = bool(abs(df.loc[j, "map_kpa"] - df.loc[j, "expected_map_kpa"]) < 2.0)
@@ -351,14 +359,32 @@ def dispatch(state: AppState, report_id: str, recipient: str) -> dict[str, Any]:
     return get(state, report_id)
 
 
-def sign(state: AppState, report_id: str, signer: str) -> dict[str, Any]:
-    """Digitally sign: SHA-256 over the report's canonical content."""
+SIGN_SLOTS = {
+    # slot -> (required clearance role, column prefix)
+    "engineering": ("propulsion_engineer", ""),
+    "maintenance": ("maint_tech", "maint_"),
+}
+
+
+def sign(state: AppState, report_id: str, signer: str, signer_operator_id: str, slot: str = "engineering") -> dict[str, Any]:
+    """Digitally sign one sign-off slot: SHA-256 over the report's canonical content
+    (the maintenance sign-off also covers the engineering signature, if present).
+    """
+    if slot not in SIGN_SLOTS:
+        raise ValueError(f"Unknown signature slot '{slot}'")
     report = get(state, report_id)
-    digest = hashlib.sha256(json.dumps(report["content"], sort_keys=True, default=float).encode()).hexdigest()
+    payload = {"content": report["content"], "engineering_sha256": report.get("signature_sha256") if slot == "maintenance" else None}
+    digest = hashlib.sha256(json.dumps(payload, sort_keys=True, default=float).encode()).hexdigest()
+    prefix = SIGN_SLOTS[slot][1]
+    who_col = "signed_by" if slot == "engineering" else "maint_signed_by"
+    id_col = "signer_operator_id" if slot == "engineering" else "maint_signer_operator_id"
     state.db.execute(
-        "UPDATE reports SET signed_by = ?, signed_at = ?, signature_sha256 = ? WHERE report_id = ?",
-        (signer, time.time(), digest, report_id),
+        f"UPDATE reports SET {who_col} = ?, {id_col} = ?, {prefix}signed_at = ?, {prefix}signature_sha256 = ? WHERE report_id = ?",
+        (signer, signer_operator_id, time.time(), digest, report_id),
     )
+    if slot == "maintenance" and report["status"] == "PENDING_REVIEW":
+        # The maintenance sign-off is the last gate: it releases the flight permit.
+        state.db.execute("UPDATE reports SET status = 'APPROVED' WHERE report_id = ?", (report_id,))
     state.db.commit()
     return get(state, report_id)
 

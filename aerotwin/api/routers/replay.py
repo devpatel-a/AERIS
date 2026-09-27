@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from aerotwin.api.deps import jsonable
 from aerotwin.api.state import get_app_state
+from aerotwin.fleet.records import load_mission_df
 from aerotwin.replay import service
 
 router = APIRouter(prefix="/api/replay", tags=["replay"])
@@ -60,3 +62,43 @@ async def replay_root_cause(run_id: str, req: RootCauseRequest) -> dict:
         raise HTTPException(status_code=404, detail=f"No stored telemetry for {exc}") from exc
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/export.h5")
+def replay_batch_export(tail_id: str) -> Response:
+    """All of a tail's stored sorties in one HDF5 file (one group per sortie), with its
+    CRC-32 in the `X-CRC32` header so the operator can validate the transfer.
+    """
+    import io
+    import zlib
+
+    import h5py
+    import numpy as np
+
+    state = get_app_state()
+    rows = state.db.execute(
+        "SELECT mission_run_id, sortie_label, mission_id, start_time FROM missions "
+        "WHERE tail_id = ? AND parquet_path IS NOT NULL AND end_time IS NOT NULL ORDER BY start_time",
+        (tail_id,),
+    ).fetchall()
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"No stored sorties for {tail_id}")
+    buf = io.BytesIO()
+    with h5py.File(buf, "w") as h5:
+        h5.attrs["tail_id"] = tail_id
+        for r in rows:
+            df = load_mission_df(r["mission_run_id"])
+            if df is None:
+                continue
+            g = h5.create_group(r["sortie_label"] or r["mission_run_id"])
+            g.attrs.update({"mission_run_id": r["mission_run_id"], "mission_id": r["mission_id"], "start_time": r["start_time"]})
+            for col in df.select_dtypes(include=["number", "bool"]).columns:
+                g.create_dataset(col, data=df[col].to_numpy(dtype=float), compression="gzip")
+            if "segment" in df.columns:
+                g.create_dataset("segment", data=np.array([str(s) for s in df["segment"]], dtype="S"))
+    data = buf.getvalue()
+    crc = f"{zlib.crc32(data) & 0xFFFFFFFF:08X}"
+    return Response(
+        data, media_type="application/x-hdf5",
+        headers={"Content-Disposition": f"attachment; filename={tail_id}_sorties.h5", "X-CRC32": crc, "Access-Control-Expose-Headers": "X-CRC32"},
+    )

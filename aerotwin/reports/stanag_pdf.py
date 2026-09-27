@@ -154,7 +154,8 @@ def render_report_pdf(report: dict[str, Any], station: dict[str, Any], out_path:
             f"DIGITALLY SIGNED — {signed}<br/>{time.strftime('%Y-%m-%d %H:%M:%SZ', time.gmtime(report['signed_at']))}<br/>SHA-256: {report['signature_sha256'][:4]}...{report['signature_sha256'][-4:]}"
             if signed else "AWAITING SIGNATURE"), st["caps"]),
         Paragraph("<b>CHIEF MAINTENANCE OFFICER</b><br/>" + (
-            "WORK ORDER ISSUED" if report["status"] == "WORK_ORDER_ISSUED" else "ACTION REQUIRED — awaiting physical ground inspection verification"), st["caps"]),
+            f"DIGITALLY SIGNED — {report['maint_signed_by']}<br/>{time.strftime('%Y-%m-%d %H:%M:%SZ', time.gmtime(report['maint_signed_at']))}<br/>SHA-256: {report['maint_signature_sha256'][:4]}...{report['maint_signature_sha256'][-4:]}"
+            if report.get("maint_signed_by") else "ACTION REQUIRED — awaiting physical ground inspection verification"), st["caps"]),
     ]], colWidths=[89 * mm, 89 * mm])
     sig.setStyle(TableStyle([("BOX", (0, 0), (0, 0), 0.5, HAIR), ("BOX", (1, 0), (1, 0), 0.5, HAIR)]))
     story += [Spacer(1, 4 * mm), sig, Spacer(1, 4 * mm)]

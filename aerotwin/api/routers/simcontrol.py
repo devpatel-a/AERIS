@@ -208,6 +208,7 @@ def sim_response_log() -> dict:
     events = [e for e in (s.analytics.events if s.analytics else []) if e["kind"] in INCIDENT_KINDS]
     return jsonable({
         "innovation": row.get("anomaly_score"),
+        "detection_armed": bool(s.analytics.armed) if s.analytics else False,
         "estimator": {"name": "UKF", "updates": int(s.t / s.twin.ukf_update_interval_s), "confidence_pct": s.twin.estimator.confidence_pct},
         "parameters": [
             {"name": n, "value": current[n], "delta": (current[n] - nominal[n]) / nominal[n] if nominal[n] else 0.0}

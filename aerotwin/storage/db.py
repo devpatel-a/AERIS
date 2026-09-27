@@ -160,6 +160,11 @@ ADDED_COLUMNS = [
     ("missions", "flight_s", "REAL"),
     ("missions", "engine_hours_start", "REAL"),
     ("alerts", "muted_until", "REAL"),
+    ("reports", "signer_operator_id", "TEXT"),
+    ("reports", "maint_signed_by", "TEXT"),
+    ("reports", "maint_signer_operator_id", "TEXT"),
+    ("reports", "maint_signed_at", "REAL"),
+    ("reports", "maint_signature_sha256", "TEXT"),
 ]
 
 

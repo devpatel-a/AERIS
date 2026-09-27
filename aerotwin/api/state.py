@@ -475,11 +475,19 @@ def _live_tick(session: Session, state: AppState, inputs, context: dict[str, Any
     # Lifetime prognostics: smoothed live health index appended to the tail's history.
     alpha = min(1.0, session.twin.dt / HEALTH_EWMA_TAU_S)
     hi = result.health.overall_index
-    session.health_ewma = hi if session.health_ewma is None else (1 - alpha) * session.health_ewma + alpha * hi
+    # Until detection is armed (estimator settled, past start-up) the live index is a
+    # warm-up transient, not degradation: prognose from the stored history alone.
+    settled = session.analytics is None or session.analytics.armed
+    if settled:
+        session.health_ewma = hi if session.health_ewma is None else (1 - alpha) * session.health_ewma + alpha * hi
+    else:
+        session.health_ewma = None
     if session.t - session.last_prognosis_t >= PROGNOSIS_INTERVAL_S:
         session.last_prognosis_t = session.t
         hours, values = session.rul_history
-        session.prognosis = prognose([*hours, session.engine_hours], [*values, session.health_ewma], state.prognostics_config)
+        if session.health_ewma is not None:
+            hours, values = [*hours, session.engine_hours], [*values, session.health_ewma]
+        session.prognosis = prognose(hours, values, state.prognostics_config)
         if session.analytics is not None:
             session.analytics.on_rul(session.t, session.prognosis.rul_mean_hours)
     row.update(_prognosis_fields(session))
