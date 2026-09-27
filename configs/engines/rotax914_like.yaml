@@ -52,6 +52,8 @@ fuel:
   stoich_afr: 14.7
   injector_flow_coeff_nominal: [1.0, 1.0, 1.0, 1.0]
   base_injection_advance_deg: 20.0   # approx — replace with OEM data
+  density_kg_per_l: 0.72             # AVGAS 100LL / MOGAS, approx
+  max_flow_l_per_h: 36.0             # ~takeoff-power flow, gauge full scale, approx
 
 # Volumetric efficiency map: VE(rpm, map_kpa), bilinear-interpolated.
 ve_map:
@@ -116,6 +118,7 @@ vibration:
   harmonic_weights: {1.5: 0.2, 2.0: 1.0, 2.5: 0.12, 3.0: 0.25, 4.0: 0.4}  # approx — replace with OEM data
   envelope_factor: 1.5
   envelope_floor_ips: 0.03
+  sensor_label: "Tri-axial Accelerometer (Aft Gearbox)"
   baseline_rms_g: 0.15                     # approx — replace with OEM data
   misfire_order_gain: 3.0                  # approx — replace with OEM data
   imbalance_order_gain: 2.0                # approx — replace with OEM data

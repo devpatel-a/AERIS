@@ -385,6 +385,7 @@ def session_context(session: Session, state: AppState, inputs) -> dict[str, Any]
         "phase": session.mission_helper.current_segment_name(session.t),
         "altitude_m": inputs.altitude_m,
         "oat_c": inputs.ambient_temp_k - 273.15,
+        "ambient_pressure_kpa": inputs.ambient_pressure_pa / 1000.0,
         "airspeed_mps": inputs.airspeed_mps,
         "throttle": inputs.throttle,
         "rated_power_w": power_rating.rated_power_w,
@@ -410,6 +411,7 @@ def _prognosis_fields(session: Session) -> dict[str, Any]:
         "rul_p95_hours": prog.rul_p95_hours,
         "rul_model": prog.model,
         "rul_threshold_index": prog.threshold_index,
+        "rul_capped": prog.rul_mean_hours is not None and prog.rul_mean_hours >= PrognosticsConfig().horizon_cap_hours - 1e-6,
         "degradation_rate_per_hour": prog.degradation_rate_per_hour,
     }
 

@@ -8,13 +8,17 @@ export interface LiveState {
   connected: boolean;
   /** Age of the latest frame when it arrived (ms): server stamp -> browser receipt. */
   syncLatencyMs: number | null;
+  /** Rolling history of received frames (oldest first, de-duplicated by t_s). */
+  history: LiveRow[];
 }
+
+const HISTORY_MAX = 400;
 
 const LiveContext = createContext<LiveState | null>(null);
 
 /** Auto-reconnecting WebSocket connection to /ws/live. Backs off up to 5s between attempts. */
 function useLiveSocketConnection(): LiveState {
-  const [state, setState] = useState<LiveState>({ latest: null, connected: false, syncLatencyMs: null });
+  const [state, setState] = useState<LiveState>({ latest: null, connected: false, syncLatencyMs: null, history: [] });
   const retryDelay = useRef(500);
 
   useEffect(() => {
@@ -33,7 +37,15 @@ function useLiveSocketConnection(): LiveState {
           const row = JSON.parse(event.data) as LiveRow;
           const wallTs = row?.context?.wall_ts;
           const syncLatencyMs = typeof wallTs === "number" ? Math.max(0, Date.now() - wallTs * 1000) : null;
-          setState({ latest: row, connected: true, syncLatencyMs });
+          setState((s) => {
+            const last = s.history[s.history.length - 1];
+            let history = s.history;
+            if (!last || last.t_s !== row.t_s) {
+              // A new session (time went backwards) starts a fresh history.
+              history = last && row.t_s < last.t_s ? [row] : [...s.history, row].slice(-HISTORY_MAX);
+            }
+            return { latest: row, connected: true, syncLatencyMs, history };
+          });
         } catch {
           /* ignore malformed frame */
         }

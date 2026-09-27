@@ -83,6 +83,12 @@ def engine_config(engine_id: str) -> dict:
         "limits": cfg.limits.model_dump(),
         "rating": cfg.rating.model_dump(),
         "cylinders": cfg.geometry.cylinders,
+        "short_name": cfg.short_name,
+        "turbo": cfg.turbo.model_dump(),
+        "fuel": {"density_kg_per_l": cfg.fuel.density_kg_per_l, "max_flow_l_per_h": cfg.fuel.max_flow_l_per_h},
+        "operating_ranges": cfg.operating_ranges,
+        "vibration": {"sensor_label": cfg.vibration.sensor_label, "envelope_factor": cfg.vibration.envelope_factor},
+        "electrical": cfg.electrical.model_dump(),
     }
 
 

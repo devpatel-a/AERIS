@@ -68,6 +68,9 @@ class CoolingConfig(BaseModel):
 class FuelConfig(BaseModel):
     """Fuel delivery system."""
 
+    density_kg_per_l: float = 0.72  # fuel density for volumetric flow display
+    max_flow_l_per_h: float = 36.0  # gauge full scale (~takeoff power flow)
+
     system_type: str  # "injection" | "carburetor"
     stoich_afr: float = 14.7
     injector_flow_coeff_nominal: list[float]
@@ -147,6 +150,7 @@ class VibrationConfig(BaseModel):
     # Alarm envelope: nominal band velocity x factor, never below the floor.
     envelope_factor: float = 1.5
     envelope_floor_ips: float = 0.03
+    sensor_label: str = "Accelerometer"  # installed vibration pickup (display)
 
 
 class FrictionConfig(BaseModel):

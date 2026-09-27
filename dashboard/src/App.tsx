@@ -12,6 +12,7 @@ import MissionReplay from "./pages/MissionReplay";
 import Reports from "./pages/Reports";
 import SimulationControl from "./pages/SimulationControl";
 import TrendsFleet from "./pages/TrendsFleet";
+import RawPreview from "./stitch-raw/RawPreview";
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/mission-replay" element={<MissionReplay />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/simulation-control" element={<SimulationControl />} />
+        {import.meta.env.DEV && <Route path="/stitch-raw/:screen" element={<RawPreview />} />}
       </Route>
       <Route path="*" element={<Navigate to="/live-ops" replace />} />
     </Routes>
