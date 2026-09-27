@@ -43,9 +43,12 @@ def dcht_dt(
     airflow_factor: float,
     config: EngineConfig,
     cooling_effectiveness_health: float,
+    cylinder_cooling: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Per-cylinder CHT derivative (K/s)."""
+    """Per-cylinder CHT derivative (K/s). `cylinder_cooling` scales each cylinder's heat rejection."""
     h_cyl = cylinder_heat_transfer_coeff(config, airflow_factor, cooling_effectiveness_health)
+    if cylinder_cooling is not None:
+        h_cyl = h_cyl * cylinder_cooling
     heat_in = heat_release_per_cyl_w * 0.22  # CYLINDER_HEAT_FRACTION, kept local to avoid coupling
     heat_out = h_cyl * (cht_k - ambient_temp_k)
     return (heat_in - heat_out) / config.thermal_masses.cylinder_thermal_mass_j_per_k

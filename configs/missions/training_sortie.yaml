@@ -1,0 +1,49 @@
+# 3-hour crew-training sortie: airwork and pattern circuits.
+mission_id: training_sortie
+display_name: "Training sortie, pattern work (3h)"
+short_name: "TRN-3H Sortie"
+profile: training
+sortie_prefix: "TRN"
+description: "Training Sortie"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: 0.0
+  headwind_mps: 2.0
+
+segments:
+  - name: taxi
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.12
+  - name: takeoff
+    duration_s: 60
+    target_altitude_m: 60.0
+    target_airspeed_mps: 28.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 600
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 40.0
+    throttle: 0.85
+  - name: pattern_work
+    duration_s: 7200
+    target_altitude_m: 1500.0
+    target_airspeed_mps: 38.0
+    throttle: 0.6
+  - name: touch_and_go
+    duration_s: 1200
+    target_altitude_m: 300.0
+    target_airspeed_mps: 32.0
+    throttle: 0.7
+  - name: descent
+    duration_s: 1200
+    target_altitude_m: 200.0
+    target_airspeed_mps: 35.0
+    throttle: 0.28
+  - name: landing
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15

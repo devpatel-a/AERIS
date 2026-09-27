@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pandas as pd
 
-DEFAULT_MISSION_LOG_DIR = Path(__file__).resolve().parents[2] / "data" / "missions"
+DEFAULT_MISSION_LOG_DIR = Path(
+    os.environ.get("AEROTWIN_DATA_DIR", Path(__file__).resolve().parents[2] / "data")
+) / "missions"
 
 
 def save_mission_log(df: pd.DataFrame, mission_run_id: str, base_dir: Path | str = DEFAULT_MISSION_LOG_DIR) -> Path:

@@ -1,0 +1,7 @@
+tail_id: UAV-05
+tail_number: "MQ-AT-05"
+engine_id: rotax914_like
+engine_serial: "4118"
+unit: "58th Recon Wing"
+hours_at_induction: 480.0  # engine logbook hours before AeroTwin recording
+notes: "Electronic warfare support airframe."

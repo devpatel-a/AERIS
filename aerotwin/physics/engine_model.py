@@ -17,7 +17,7 @@ import numpy as np
 
 from aerotwin.physics import cooling, electrical, intake, rotational, vibration
 from aerotwin.physics.combustion import compute_combustion
-from aerotwin.physics.lubrication import oil_pressure_kpa
+from aerotwin.physics.lubrication import oil_consumption_l_per_h, oil_pressure_kpa
 from aerotwin.physics.state import (
     HIDX_ALT_EFF,
     HIDX_COOLING_EFF,
@@ -53,6 +53,7 @@ def _dxdt(
     config: EngineConfig,
     misfire_mask: np.ndarray,
     combustion_efficiency_override: float | None,
+    cylinder_cooling: np.ndarray | None = None,
 ) -> np.ndarray:
     """Compute the state derivative vector at (x, inputs, health)."""
     omega = max(x[IDX_OMEGA], 1e-3)
@@ -95,6 +96,7 @@ def _dxdt(
         airflow_factor,
         config,
         health[HIDX_COOLING_EFF],
+        cylinder_cooling,
     )
     dcoolant = cooling.dcoolant_dt(
         coolant_t, cht, inputs.ambient_temp_k, airflow_factor, config, health[HIDX_COOLING_EFF]
@@ -147,6 +149,9 @@ class EngineModel:
         )
         # Fault-injection hooks (see aerotwin.faults) — no-op by default.
         self.misfire_mask = np.ones(N_CYL)
+        # Per-cylinder cooling: fixed shroud geometry (config) x fault-driven local loss.
+        self.cylinder_cooling_bias = np.asarray(config.cooling.cylinder_cooling_bias, dtype=float)
+        self.cylinder_cooling_factor = np.ones(N_CYL)
         self.vibration_imbalance_severity = 0.0
         self.combustion_efficiency_override: float | None = None
 
@@ -154,14 +159,17 @@ class EngineModel:
         """Advance the model by one fixed timestep (RK4) and return outputs."""
         x = self.state
         dt = self.dt
-        k1 = _dxdt(x, inputs, self.health, self.config, self.misfire_mask, self.combustion_efficiency_override)
+        cyl = self.cylinder_cooling_bias * self.cylinder_cooling_factor
+        k1 = _dxdt(x, inputs, self.health, self.config, self.misfire_mask, self.combustion_efficiency_override, cyl)
         k2 = _dxdt(
-            x + 0.5 * dt * k1, inputs, self.health, self.config, self.misfire_mask, self.combustion_efficiency_override
+            x + 0.5 * dt * k1, inputs, self.health, self.config, self.misfire_mask, self.combustion_efficiency_override,
+            cyl,
         )
         k3 = _dxdt(
-            x + 0.5 * dt * k2, inputs, self.health, self.config, self.misfire_mask, self.combustion_efficiency_override
+            x + 0.5 * dt * k2, inputs, self.health, self.config, self.misfire_mask, self.combustion_efficiency_override,
+            cyl,
         )
-        k4 = _dxdt(x + dt * k3, inputs, self.health, self.config, self.misfire_mask, self.combustion_efficiency_override)
+        k4 = _dxdt(x + dt * k3, inputs, self.health, self.config, self.misfire_mask, self.combustion_efficiency_override, cyl)
         x_next = x + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
         x_next[IDX_OMEGA] = max(x_next[IDX_OMEGA], 1.0)
         x_next[IDX_BATTERY_SOC] = min(max(x_next[IDX_BATTERY_SOC], 0.0), 1.0)
@@ -200,6 +208,13 @@ class EngineModel:
         vib_rms, vib_bands = vibration.compute_vibration(
             rpm, comb.fuel_per_cyl_kg_s, config, self.vibration_imbalance_severity
         )
+        oil_consumption = oil_consumption_l_per_h(rpm, config, health[HIDX_FRICTION], health[HIDX_OIL_PUMP_EFF])
+        cool = config.cooling
+        coolant_flow = cool.coolant_pump_kg_s_at_rated * rpm / max(config.rating.rated_rpm, 1.0)
+        coolant_p = (
+            cool.coolant_pressure_fill_kpa
+            + cool.coolant_pressure_kpa_per_k * max(float(x[IDX_COOLANT_T]) - cool.coolant_pressure_fill_temp_k, 0.0)
+        ) * (0.7 + 0.3 * float(health[HIDX_COOLING_EFF]))
 
         return EngineOutputs(
             rpm=rpm,
@@ -218,4 +233,7 @@ class EngineModel:
             battery_soc=float(x[IDX_BATTERY_SOC]),
             vibration_rms_g=vib_rms,
             vibration_bands_g=vib_bands,
+            oil_consumption_l_h=oil_consumption,
+            coolant_mass_flow_kg_s=coolant_flow,
+            coolant_pressure_kpa=coolant_p,
         )

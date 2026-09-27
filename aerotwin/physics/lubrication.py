@@ -28,3 +28,16 @@ def oil_pressure_kpa(
     overtemp = max(0.0, (oil_temp_k - VISCOSITY_DERATE_REF_K) / VISCOSITY_DERATE_SPAN_K)
     derate = 1.0 - min(overtemp, 1.0) * VISCOSITY_DERATE_MAX_FRACTION
     return max(base * derate, 0.0)
+
+
+def oil_consumption_l_per_h(
+    rpm: float, config: EngineConfig, friction_factor_health: float, oil_pump_efficiency_health: float
+) -> float:
+    """Oil burn rate (L/h). Rises with engine speed and with ring/liner wear
+    (friction_factor > 1 means more blow-by past worn rings); a weak pump
+    raises it slightly via poorer ring lubrication. Approx — replace with OEM data.
+    """
+    speed_frac = max(rpm, 0.0) / max(config.rating.rated_rpm, 1.0)
+    wear = max(friction_factor_health, 0.5) ** 3
+    pump = 1.0 + 0.3 * max(1.0 - oil_pump_efficiency_health, 0.0)
+    return config.lubrication.oil_consumption_nominal_l_per_h * speed_frac * wear * pump

@@ -1,0 +1,164 @@
+# Maintenance knowledge base for the Diagnostics advisories, work orders,
+# fleet "next maintenance" column and component service records.
+#
+# ATA references follow ATA iSpec 2200 chapter numbering:
+#   71 Power plant · 72 Engine · 73 Engine fuel & control · 74 Ignition
+#   75 Air (engine cooling) · 77 Engine indicating · 79 Oil · 24 Electrical power
+#   81 Turbines (turbocharger)
+# Advisory wording/intervals approx — replace with the engine maintenance manual.
+
+# Recurring scheduled tasks. `interval_hours` counts engine hours since the
+# task was last completed (a COMPLETED work order with the same task_key).
+scheduled_tasks:
+  - key: inspection_100h
+    title: 100-Hr Inspection
+    interval_hours: 100
+    ata: "05-20"
+    location: Full Drivetrain
+  - key: cylinder_head_service
+    title: Cylinder head gasket & shroud service
+    interval_hours: 200
+    ata: "72-30"
+    location: Cylinder heads 1-4
+  - key: radiator_inspection
+    title: Radiator inspection
+    interval_hours: 150
+    ata: "75-20"
+    location: Radiator core
+  - key: turbo_inspection
+    title: Turbo inspection
+    interval_hours: 300
+    ata: "81-20"
+    location: Turbocharger & wastegate
+  - key: top_overhaul
+    title: Scheduled top overhaul
+    interval_hours: 1000
+    ata: "72-00"
+    location: Cylinders, pistons, valves
+
+# Condition-based advisories raised by a detected/predicted fault. `{cyl}` is
+# replaced by the affected cylinder number when the fault is cylinder-specific.
+advisories:
+  cooling_degradation:
+    - key: radiator_duct_baffles
+      title: Radiator & Duct Baffles Inspection
+      detail: Inspect heat exchanger intake mesh for foreign debris or deformation.
+      ata: "75-20"
+      location: Rad Core Port
+      priority: HIGH
+      service_task: radiator_inspection
+    - key: coolant_circuit_pump
+      title: Coolant Circuit & Pump Pressure
+      detail: Check 50/50 water-glycol reserve tank level and check expansion line.
+      ata: "75-10"
+      location: Expansion Tank
+      priority: HIGH
+    - key: cht_sensor_calibration
+      title: "CHT Cylinder {cyl} Sensor Calibration"
+      detail: Cross-reference thermocouple loop impedance.
+      ata: "77-22"
+      location: "Cyl {cyl} Thermocouple"
+      priority: LOW
+      requires_cylinder: true
+  overheating_trend:
+    - key: cooling_margin_review
+      title: Cooling System Margin Review
+      detail: Reduce sustained low-airspeed/high-power operation; inspect cowling seals before hot-weather missions.
+      ata: "75-00"
+      location: Cowling & Baffles
+      priority: MEDIUM
+  lubrication_issue:
+    - key: oil_pump_filter
+      title: Oil Pump & Filter Inspection
+      detail: Inspect oil pump, filter and scavenge lines; check oil level and condition.
+      ata: "79-20"
+      location: Oil Pump
+      priority: HIGH
+    - key: oil_cooler_bypass
+      title: Oil Cooler Bypass Valve Check
+      detail: Verify thermostatic bypass valve seats fully; check cooler for blockage.
+      ata: "79-30"
+      location: Oil Cooler
+      priority: MEDIUM
+  injector_abnormality:
+    - key: injector_flow_check
+      title: "Injector {cyl} Flow & Spray Pattern Check"
+      detail: Bench-check injector flow calibration; inspect pintle for erosion or deposits.
+      ata: "73-10"
+      location: "Injector-0{cyl}"
+      priority: MEDIUM
+      requires_cylinder: true
+  misfire:
+    - key: ignition_check
+      title: "Cylinder {cyl} Ignition & Compression Check"
+      detail: Inspect spark plugs A/B and ignition coil; check compression before next flight.
+      ata: "74-20"
+      location: "Spark Igniter {cyl} (Dual)"
+      priority: HIGH
+      requires_cylinder: true
+  combustion_instability:
+    - key: combustion_check
+      title: Combustion Stability Investigation
+      detail: Inspect ignition timing, fuel quality and injector spray pattern; check for intake air leaks.
+      ata: "73-00"
+      location: Fuel Metering
+      priority: MEDIUM
+  abnormal_vibration:
+    - key: prop_balance_mounts
+      title: Propeller Balance & Engine Mount Inspection
+      detail: Dynamic-balance the propeller; inspect engine mounts and gearbox bearings.
+      ata: "71-20"
+      location: Engine Mounts
+      priority: HIGH
+  alternator_degradation:
+    - key: alternator_check
+      title: Alternator & Regulator Check
+      detail: Inspect alternator brushes/bearings and wiring; verify regulator output on ground test.
+      ata: "24-30"
+      location: Gen-1 / Regulator
+      priority: MEDIUM
+  turbo_degradation:
+    - key: turbo_check
+      title: Turbocharger Wastegate & Shaft Play
+      detail: Inspect turbo shaft play, wastegate actuation and intake/exhaust piping for leaks.
+      ata: "81-20"
+      location: Turbocharger
+      priority: HIGH
+      service_task: turbo_inspection
+  sensor_fault:
+    - key: sensor_recalibration
+      title: Flagged Sensor Recalibration
+      detail: Inspect and recalibrate/replace the flagged sensor and its wiring before trusting that channel.
+      ata: "77-00"
+      location: Engine Indicating
+      priority: LOW
+
+# Human-readable fault names and owning subsystem (Diagnostics fault matrix).
+faults:
+  cooling_degradation: {label: Cooling degradation, subsystem: Cooling, banner: "Thermal Anomaly Detected", health_label: "Cooling effectiveness",
+    diagnosis: "Thermodynamic residual pattern matches coolant shroud restriction or fin fouling, causing asymmetric head heat buildup without combustion knock."}
+  overheating_trend: {label: Overheating trend, subsystem: Cooling, banner: "Thermal Anomaly Detected", health_label: "Cooling margin",
+    diagnosis: "Head temperatures trend toward the redline under current airspeed/power; cooling margin is insufficient for sustained operation."}
+  lubrication_issue: {label: Lubrication issue, subsystem: Lubrication, banner: "Lubrication Anomaly Detected", health_label: "Oil pump efficiency",
+    diagnosis: "Oil pressure residual falls below the twin's expectation at matched rpm and oil temperature, pointing to pump wear or a bypass leak."}
+  injector_abnormality: {label: Injector abnormality, subsystem: Fuel/Injection, banner: "Fuel Delivery Anomaly Detected", health_label: "Injector flow",
+    diagnosis: "Single-cylinder EGT residual with a matching fuel-flow deviation indicates an injector delivering off-nominal fuel mass."}
+  misfire: {label: Cylinder misfire, subsystem: Combustion, banner: "Combustion Anomaly Detected", health_label: "Ignition integrity",
+    diagnosis: "Periodic EGT drop on one cylinder with sub-order vibration energy is the signature of an intermittent misfire."}
+  combustion_instability: {label: Combustion instability, subsystem: Combustion, banner: "Combustion Anomaly Detected", health_label: "Combustion stability",
+    diagnosis: "Cycle-to-cycle torque and EGT scatter exceed the twin's envelope, consistent with lean or unstable combustion."}
+  abnormal_vibration: {label: Abnormal vibration, subsystem: Vibration, banner: "Vibration Anomaly Detected", health_label: "Mechanical balance",
+    diagnosis: "1x-order vibration rises above the baseline envelope while combustion residuals stay nominal: mechanical imbalance or bearing wear."}
+  alternator_degradation: {label: Alternator degradation, subsystem: Electrical, banner: "Electrical Anomaly Detected", health_label: "Alternator efficiency",
+    diagnosis: "Charging current falls below the twin's expected output at matched rpm, pointing to alternator or regulator degradation."}
+  turbo_degradation: {label: Turbocharger degradation, subsystem: Turbo/Air, banner: "Induction Anomaly Detected", health_label: "Turbocharger efficiency",
+    diagnosis: "Manifold pressure trails the twin's boost prediction at altitude, indicating turbocharger or wastegate degradation."}
+  sensor_fault: {label: Sensor drift, subsystem: Sensors, banner: "Sensor Fault Detected", health_label: "Sensor integrity",
+    diagnosis: "One channel deviates while its correlated siblings and the estimator agree with each other, and its loop self-test is abnormal: a sensor fault, not an engine fault."}
+
+# Lifetime prognostics (Remaining Useful Life to the maintenance threshold).
+prognostics:
+  model: "Linear degradation trend · bootstrap 90% CI"
+  threshold_index: 70.0     # overall health index at which maintenance is due
+  horizon_cap_hours: 2000.0 # never report RUL beyond the engine TBO horizon
+  window_missions: 12       # recent missions used for the degradation fit

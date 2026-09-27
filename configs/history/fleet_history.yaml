@@ -1,0 +1,68 @@
+# Recorded-history scenario for `scripts/seed_fleet_history.py`: which sorties
+# each airframe flew and how its engine wore over them. The seeder simulates
+# every sortie through the physics plant, the twin and the fault classifier —
+# only this schedule and the wear trajectory are authored; all telemetry,
+# health indices, detections and summaries are computed.
+#
+# wear: health-parameter values at the first and last recorded sortie
+# (linear in sortie index). local_cooling: per-cylinder duct factor on the
+# last sortie (cylinder index 0-3), ramping in over the final `onset` fraction.
+days_span: 45
+tails:
+  UAV-07:
+    last_ended_days_ago: 1.0
+    sorties: [isr_18h_endurance, combat_air_patrol, border_recon, isr_18h_endurance, maritime_patrol,
+              high_altitude_6km, isr_18h_endurance, combat_air_patrol, border_recon, electronic_warfare,
+              isr_18h_endurance, maritime_patrol, combat_air_patrol, border_recon, isr_18h_endurance,
+              high_altitude_6km, combat_air_patrol, border_recon, isr_18h_endurance, electronic_warfare]
+    wear:
+      cooling_effectiveness: [1.0, 0.9]
+      friction_factor: [1.0, 1.03]
+      volumetric_efficiency_factor: [1.0, 0.98]
+    local_cooling: {cylinder: 2, factor: 0.9, onset: 0.35}
+    test_flights:
+      - {after_sortie: 12, mission: rapid_throttle_transitions, fault: cooling_degradation, target: 2, severity: 0.3, ramp_s: 240}
+  UAV-03:
+    last_ended_days_ago: 2.0
+    sorties: [maritime_patrol, training_sortie, maritime_patrol, border_recon, maritime_patrol, training_sortie,
+              combat_air_patrol, maritime_patrol, border_recon, maritime_patrol, training_sortie, maritime_patrol,
+              high_altitude_6km, maritime_patrol, border_recon, maritime_patrol]
+    wear:
+      friction_factor: [1.02, 1.04]
+      oil_pump_efficiency: [0.99, 0.96]
+  UAV-11:
+    last_ended_days_ago: 0.5
+    sorties: [training_sortie, training_sortie, border_recon, training_sortie, border_recon, border_recon]
+    wear: {}
+  UAV-02:
+    last_ended_days_ago: 1.0
+    sorties: [high_alt_relay, combat_air_patrol, high_alt_relay, maritime_patrol, high_alt_relay, border_recon,
+              high_alt_relay, combat_air_patrol, high_alt_relay, high_alt_relay, maritime_patrol, high_alt_relay]
+    wear:
+      friction_factor: [1.06, 1.16]
+      volumetric_efficiency_factor: [0.95, 0.88]
+      oil_pump_efficiency: [0.93, 0.85]
+      turbo_efficiency: [0.93, 0.86]
+  UAV-09:
+    last_ended_days_ago: 3.0
+    sorties: [training_sortie, training_sortie, training_sortie, maritime_patrol, training_sortie, training_sortie,
+              border_recon, training_sortie, training_sortie, training_sortie]
+    wear:
+      friction_factor: [1.0, 1.02]
+  UAV-05:
+    last_ended_days_ago: 4.0
+    sorties: [electronic_warfare, combat_air_patrol, electronic_warfare, border_recon, electronic_warfare,
+              combat_air_patrol, electronic_warfare, high_altitude_6km, electronic_warfare, combat_air_patrol,
+              electronic_warfare, electronic_warfare]
+    wear:
+      turbo_efficiency: [0.97, 0.82]
+      alternator_efficiency: [1.0, 0.93]
+
+# Completed maintenance before/through the recorded period (engine hours).
+maintenance_history:
+  UAV-07: {inspection_100h: [300, 480], cylinder_head_service: [360], radiator_inspection: [410], turbo_inspection: [300], top_overhaul: [0]}
+  UAV-03: {inspection_100h: [700, 800], cylinder_head_service: [800], radiator_inspection: [750], turbo_inspection: [600], top_overhaul: [0]}
+  UAV-11: {inspection_100h: [], cylinder_head_service: [], radiator_inspection: [], turbo_inspection: [], top_overhaul: [0]}
+  UAV-02: {inspection_100h: [1000, 1100], cylinder_head_service: [1000], radiator_inspection: [1050], turbo_inspection: [900], top_overhaul: [180]}
+  UAV-09: {inspection_100h: [200], cylinder_head_service: [200], radiator_inspection: [150], turbo_inspection: [0], top_overhaul: [0]}
+  UAV-05: {inspection_100h: [500, 600], cylinder_head_service: [500], radiator_inspection: [550], turbo_inspection: [400], top_overhaul: [0]}

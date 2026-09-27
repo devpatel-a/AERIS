@@ -8,6 +8,8 @@
 # documentation are tagged `# approx — replace with OEM data`.
 engine_id: rotax914_like
 display_name: "Rotax 914-class turbocharged boxer (representative, injected variant)"
+short_name: "Rotax 914-class"
+monitor_label: "Rotax 914 Turbocharged"
 
 geometry:
   cylinders: 4
@@ -23,6 +25,7 @@ rating:
   rated_rpm: 5800.0
   max_rpm: 5900.0
   idle_rpm: 1400.0
+  max_continuous_power_w: 73500.0  # ~100 hp MCP (Rotax 914 max continuous)
 
 turbo:
   present: true
@@ -35,13 +38,22 @@ cooling:
   type: "liquid_heads_air_cylinders"   # liquid-cooled heads, air-cooled cylinders
   cooling_effectiveness_nominal: 1.0
   coolant_target_k: 372.0            # ~99 C, approx — replace with OEM data
-  cylinder_ambient_htc_ref: 55.0     # W/m^2K at reference airspeed, approx
+  cylinder_ambient_htc_ref: 70.0     # W/m^2K at reference airspeed, approx — calibrated so
+                                     # nominal ISA climb stays below the 135 C CHT limit
+  # Rear cylinders (3, 4) sit downstream in the cowling and reject slightly less heat.
+  cylinder_cooling_bias: [1.02, 0.99, 0.97, 1.00]  # approx — replace with OEM data
+  coolant_pump_kg_s_at_rated: 1.9      # approx — replace with OEM data
+  coolant_pressure_fill_kpa: 100.0     # approx — replace with OEM data
+  coolant_pressure_fill_temp_k: 293.0
+  coolant_pressure_kpa_per_k: 0.9      # approx — replace with OEM data
 
 fuel:
   system_type: "injection"   # representative variant; see header note
   stoich_afr: 14.7
   injector_flow_coeff_nominal: [1.0, 1.0, 1.0, 1.0]
   base_injection_advance_deg: 20.0   # approx — replace with OEM data
+  density_kg_per_l: 0.72             # AVGAS 100LL / MOGAS, approx
+  max_flow_l_per_h: 36.0             # ~takeoff-power flow, gauge full scale, approx
 
 # Volumetric efficiency map: VE(rpm, map_kpa), bilinear-interpolated.
 ve_map:
@@ -56,14 +68,26 @@ ve_map:
     - [0.60, 0.72, 0.81, 0.85, 0.86]
 
 limits:
-  max_cht_k: 508.0            # ~235 C, approx — replace with OEM data
-  max_egt_k: 1173.0           # ~900 C, approx — replace with OEM data
+  max_cht_k: 408.0            # 135 C — Rotax 914 max cylinder head temperature
+  max_egt_k: 1223.0           # 950 C — Rotax 914 max exhaust gas temperature
   max_oil_temp_k: 394.0       # ~121 C, approx — replace with OEM data
   min_oil_pressure_kpa: 200.0 # approx — replace with OEM data
   max_oil_pressure_kpa: 500.0 # approx — replace with OEM data
   max_map_kpa: 135.0
   min_coolant_temp_k: 320.0
   max_coolant_temp_k: 383.0   # approx — replace with OEM data
+  cht_target_k: 388.0         # 115 C normal cruise CHT target, approx
+  cht_caution_k: 398.0        # 125 C caution band start, approx
+  oil_temp_buffer_k: 10.0     # min planning margin below max oil temp, approx
+
+# Normal operating bands shown next to live readouts (SI units), approx.
+operating_ranges:
+  oil_pressure_kpa: [350.0, 500.0]
+  oil_temp_k: [348.0, 383.0]
+  coolant_temp_k: [323.0, 378.0]
+  alternator_voltage_v: [27.0, 28.8]
+  alternator_current_a: [20.0, 45.0]
+  injection_timing_deg: [21.0, 25.0]
 
 propeller:
   diameter_m: 1.75             # approx — replace with OEM data
@@ -81,6 +105,7 @@ lubrication:
   oil_pump_efficiency_nominal: 1.0
   oil_pressure_ref_kpa: 400.0             # approx — replace with OEM data
   oil_pressure_rpm_ref: 5000.0
+  oil_consumption_nominal_l_per_h: 0.018  # ~0.18 L/10h at rated rpm, approx — replace with OEM data
 
 electrical:
   alternator_efficiency_nominal: 0.85     # approx — replace with OEM data
@@ -89,7 +114,11 @@ electrical:
   base_load_a: 8.0                        # approx — replace with OEM data
 
 vibration:
-  crank_orders: [0.5, 1.0, 2.0]            # boxer 4 firing-order harmonics
+  crank_orders: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0]  # boxer-4 firing-order harmonics
+  harmonic_weights: {1.5: 0.2, 2.0: 1.0, 2.5: 0.12, 3.0: 0.25, 4.0: 0.4}  # approx — replace with OEM data
+  envelope_factor: 1.5
+  envelope_floor_ips: 0.03
+  sensor_label: "Tri-axial Accelerometer (Aft Gearbox)"
   baseline_rms_g: 0.15                     # approx — replace with OEM data
   misfire_order_gain: 3.0                  # approx — replace with OEM data
   imbalance_order_gain: 2.0                # approx — replace with OEM data

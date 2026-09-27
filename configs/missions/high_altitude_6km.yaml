@@ -2,9 +2,14 @@
 # the power-loss-above-critical-altitude behaviour of the digital twin.
 mission_id: high_altitude_6km
 display_name: "High-altitude cruise at 6 km"
+short_name: "High-Alt 6km Cruise"
+profile: high_altitude
+sortie_prefix: "HIGH-ALT"
+description: "Ceiling Envelope Validation"
 engine_id: rotax914_like
 
 environment:
+  headwind_mps: 6.0
   base_isa_deviation_k: 0.0
 
 segments:

@@ -160,6 +160,9 @@ def _plan_samples(n_samples: int, seed: int) -> list[SampleSpec]:
         target: int | str | None = None
         if fault_type in ("misfire", "injector_abnormality"):
             target = int(rng.integers(0, 4))
+        elif fault_type == "cooling_degradation" and rng.uniform() < 0.5:
+            # Half the cooling cases are localized to one cylinder (blocked duct/shroud).
+            target = int(rng.integers(0, 4))
         elif fault_type in SENSOR_FAULT_TYPES:
             target = str(rng.choice(SENSOR_TARGET_CHANNELS))
         plans.append(

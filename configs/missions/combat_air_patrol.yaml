@@ -1,0 +1,54 @@
+# 14-hour combat air patrol: ingress, long racetrack orbit at 4.5 km, egress.
+mission_id: combat_air_patrol
+display_name: "Combat air patrol orbit (14h)"
+short_name: "CAP-14H Orbit"
+profile: cap
+sortie_prefix: "CAP"
+description: "Combat Air Patrol Station"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: 0.0
+  headwind_mps: 6.0
+
+segments:
+  - name: taxi
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.12
+  - name: takeoff
+    duration_s: 60
+    target_altitude_m: 60.0
+    target_airspeed_mps: 28.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 1500
+    target_altitude_m: 4500.0
+    target_airspeed_mps: 45.0
+    throttle: 0.9
+  - name: ingress
+    duration_s: 3600
+    target_altitude_m: 4500.0
+    target_airspeed_mps: 48.0
+    throttle: 0.62
+  - name: cap_station
+    duration_s: 39600
+    target_altitude_m: 4500.0
+    target_airspeed_mps: 36.0
+    throttle: 0.5
+  - name: egress
+    duration_s: 3600
+    target_altitude_m: 4500.0
+    target_airspeed_mps: 48.0
+    throttle: 0.6
+  - name: descent
+    duration_s: 1200
+    target_altitude_m: 200.0
+    target_airspeed_mps: 35.0
+    throttle: 0.28
+  - name: landing
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15

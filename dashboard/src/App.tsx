@@ -1,64 +1,45 @@
-import { NavLink, Route, Routes } from "react-router-dom";
-import LiveOps from "./pages/LiveOps";
-import TwinComparison from "./pages/TwinComparison";
+import { Navigate, Route, Routes } from "react-router-dom";
+import AppShell from "./app/AppShell";
+import { StationProvider } from "./app/StationContext";
+import { RequireAuth } from "./auth/RequireAuth";
+import { LiveProvider } from "./lib/useLiveSocket";
 import Diagnostics from "./pages/Diagnostics";
-import Trends from "./pages/Trends";
+import DigitalTwin from "./pages/DigitalTwin";
+import LiveOps from "./pages/LiveOps";
+import Login from "./pages/Login";
 import MissionPlanner from "./pages/MissionPlanner";
-import Replay from "./pages/Replay";
-import DemoControl from "./pages/DemoControl";
+import MissionReplay from "./pages/MissionReplay";
 import Reports from "./pages/Reports";
-
-const NAV = [
-  { to: "/", label: "Live Ops" },
-  { to: "/twin", label: "Twin Comparison" },
-  { to: "/diagnostics", label: "Diagnostics" },
-  { to: "/trends", label: "Trends" },
-  { to: "/planner", label: "Mission Planner" },
-  { to: "/replay", label: "Replay" },
-  { to: "/demo", label: "Demo Control" },
-  { to: "/reports", label: "Reports" },
-];
+import SimulationControl from "./pages/SimulationControl";
+import TrendsFleet from "./pages/TrendsFleet";
+import RawPreview from "./stitch-raw/RawPreview";
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col bg-gcs-bg">
-      <header className="border-b border-gcs-border bg-gcs-panel px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-gcs-accent" />
-          <span className="font-semibold tracking-wide text-slate-100">AeroTwin</span>
-          <span className="text-xs text-slate-500">Digital Twin GCS</span>
-        </div>
-        <nav className="flex gap-1 flex-wrap justify-end">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
-                `px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                  isActive
-                    ? "bg-gcs-accent/20 text-gcs-accent border border-gcs-accent/40"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-      </header>
-      <main className="flex-1 p-4 max-w-[1600px] w-full mx-auto">
-        <Routes>
-          <Route path="/" element={<LiveOps />} />
-          <Route path="/twin" element={<TwinComparison />} />
-          <Route path="/diagnostics" element={<Diagnostics />} />
-          <Route path="/trends" element={<Trends />} />
-          <Route path="/planner" element={<MissionPlanner />} />
-          <Route path="/replay" element={<Replay />} />
-          <Route path="/demo" element={<DemoControl />} />
-          <Route path="/reports" element={<Reports />} />
-        </Routes>
-      </main>
-    </div>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        element={
+          <RequireAuth>
+            <StationProvider>
+              <LiveProvider>
+                <AppShell />
+              </LiveProvider>
+            </StationProvider>
+          </RequireAuth>
+        }
+      >
+        <Route path="/live-ops" element={<LiveOps />} />
+        <Route path="/digital-twin" element={<DigitalTwin />} />
+        <Route path="/diagnostics" element={<Diagnostics />} />
+        <Route path="/trends-fleet" element={<TrendsFleet />} />
+        <Route path="/mission-planner" element={<MissionPlanner />} />
+        <Route path="/mission-replay" element={<MissionReplay />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/simulation-control" element={<SimulationControl />} />
+        {import.meta.env.DEV && <Route path="/stitch-raw/:screen" element={<RawPreview />} />}
+      </Route>
+      <Route path="*" element={<Navigate to="/live-ops" replace />} />
+    </Routes>
   );
 }

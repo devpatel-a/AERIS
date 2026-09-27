@@ -1,0 +1,8 @@
+tail_id: UAV-07
+tail_number: "MQ-AT-07"
+engine_id: rotax914_like
+engine_serial: "4471"
+unit: "58th Recon Wing"
+hours_at_induction: 250.0  # engine logbook hours before AeroTwin recording
+notes: "ISR squadron primary airframe."
+primary: true

@@ -94,9 +94,12 @@ def compute_health_snapshot(
     idx["combustion"] = float(np.clip(100.0 * (2.0 * ve - 1.0), 0.0, 100.0))
 
     cooling_eff = float(health[HIDX_COOLING_EFF])
+    # CHT margin: no penalty up to the caution band, ramping to full at the limit.
+    cht_nominal = config.limits.cht_caution_k or 350.0
+    cht_span = 1.0 if config.limits.cht_caution_k else 0.3
     cht_penalty = max(
         (
-            _margin_penalty(outputs_flat.get(f"cht_{i}_k", 0.0), config.limits.max_cht_k, 350.0)
+            _margin_penalty(outputs_flat.get(f"cht_{i}_k", 0.0), config.limits.max_cht_k, cht_nominal, cht_span)
             for i in range(1, N_CYL + 1)
         ),
         default=0.0,
@@ -126,6 +129,11 @@ def compute_health_snapshot(
     idx["mechanical_vibration"] = float(np.clip(idx["mechanical_vibration"] * min(1.0, 2.0 - friction), 0.0, 100.0))
     turbo_eff = float(health[HIDX_TURBO_EFF])
     idx["combustion"] = float(np.clip(idx["combustion"] * (0.5 + 0.5 * turbo_eff), 0.0, 100.0))
+
+    # Auxiliary (not in the weighted overall index): induction path health —
+    # turbo efficiency health (1.0 = nominal) x volumetric efficiency health.
+    turbo_rel = min(turbo_eff, 1.0) if config.turbo.present else 1.0
+    idx["turbo_air"] = float(np.clip(100.0 * turbo_rel * min(ve, 1.0), 0.0, 100.0))
 
     risk = {s: risk_level(v) for s, v in idx.items()}
     overall_index = float(sum(idx[s] * SUBSYSTEM_WEIGHTS[s] for s in SUBSYSTEMS))

@@ -10,15 +10,39 @@ import time
 
 from fastapi import Header, HTTPException, status
 
+from aerotwin.auth.service import AuthError, AuthSession, resolve_token
+
 API_TOKEN = os.environ.get("AEROTWIN_TOKEN", "devtoken")
 EDGE_HMAC_SECRET = os.environ.get("AEROTWIN_EDGE_SECRET", "aerotwin-edge-secret-devonly").encode()
 
 
+def _bearer(authorization: str | None) -> str | None:
+    if authorization and authorization.startswith("Bearer "):
+        return authorization[len("Bearer ") :]
+    return None
+
+
+def current_session(authorization: str | None = Header(default=None)) -> AuthSession:
+    """FastAPI dependency: the signed-in operator's session (401 if absent/invalid/expired)."""
+    from aerotwin.api.state import get_app_state
+
+    token = _bearer(authorization)
+    if token is None or token == API_TOKEN:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Operator sign-in required")
+    try:
+        return resolve_token(get_app_state().db, token)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+
 def require_token(authorization: str | None = Header(default=None)) -> None:
-    """FastAPI dependency: require `Authorization: Bearer <token>` matching AEROTWIN_TOKEN."""
-    expected = f"Bearer {API_TOKEN}"
-    if authorization != expected:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token")
+    """FastAPI dependency for write endpoints: accept a signed-in operator's session
+    token, or the static service token (AEROTWIN_TOKEN) used by scripts and tests.
+    """
+    token = _bearer(authorization)
+    if token is not None and hmac.compare_digest(token, API_TOKEN):
+        return
+    current_session(authorization)
 
 
 def sign_telemetry_packet(payload: dict, secret: bytes = EDGE_HMAC_SECRET) -> dict:

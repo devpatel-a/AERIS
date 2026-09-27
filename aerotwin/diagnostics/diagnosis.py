@@ -50,6 +50,7 @@ class Diagnosis:
     rul_mean_hours: float | None = None
     rul_p05_hours: float | None = None
     rul_p95_hours: float | None = None
+    shap_features: list[dict[str, float | str]] = field(default_factory=list)
 
 
 def build_diagnosis(
@@ -60,8 +61,9 @@ def build_diagnosis(
     rul_mean_hours: float | None = None,
     rul_p05_hours: float | None = None,
     rul_p95_hours: float | None = None,
+    shap_features: list[dict[str, float | str]] | None = None,
 ) -> Diagnosis:
-    """Combine a health snapshot + classifier output (+ optional RUL) into a Diagnosis."""
+    """Combine a health snapshot + classifier output (+ optional RUL/SHAP) into a Diagnosis."""
     severity = SEVERITY_FROM_RISK.get(health.overall_risk, "unknown")
     action = MAINTENANCE_ACTIONS.get(fault, "Inspect engine per maintenance manual.")
     return Diagnosis(
@@ -76,4 +78,5 @@ def build_diagnosis(
         rul_mean_hours=rul_mean_hours,
         rul_p05_hours=rul_p05_hours,
         rul_p95_hours=rul_p95_hours,
+        shap_features=shap_features or [],
     )

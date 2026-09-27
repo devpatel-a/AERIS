@@ -1,0 +1,44 @@
+# 10-hour high-altitude communications relay orbit near the turbo critical altitude.
+mission_id: high_alt_relay
+display_name: "High-altitude comms relay (10h)"
+short_name: "HAR-10H Relay"
+profile: high_altitude
+sortie_prefix: "HAR"
+description: "High-Alt Comms Relay"
+engine_id: rotax914_like
+
+environment:
+  base_isa_deviation_k: -5.0
+  headwind_mps: 8.0
+
+segments:
+  - name: taxi
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.12
+  - name: takeoff
+    duration_s: 60
+    target_altitude_m: 60.0
+    target_airspeed_mps: 28.0
+    throttle: 0.95
+  - name: climb
+    duration_s: 2100
+    target_altitude_m: 6000.0
+    target_airspeed_mps: 46.0
+    throttle: 0.95
+  - name: relay_orbit
+    duration_s: 32400
+    target_altitude_m: 6000.0
+    target_airspeed_mps: 42.0
+    throttle: 0.8
+  - name: descent
+    duration_s: 1500
+    target_altitude_m: 200.0
+    target_airspeed_mps: 35.0
+    throttle: 0.28
+  - name: landing
+    duration_s: 300
+    target_altitude_m: 0.0
+    target_airspeed_mps: 0.0
+    throttle: 0.15

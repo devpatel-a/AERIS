@@ -41,6 +41,7 @@ class EnvironmentConfig(BaseModel):
     """Mission-wide environment baseline; segments may override `isa_deviation_k`."""
 
     base_isa_deviation_k: float = 0.0
+    headwind_mps: float = 0.0  # mean headwind on the ingress/egress legs (planning display only)
 
 
 class MissionConfig(BaseModel):
@@ -48,7 +49,12 @@ class MissionConfig(BaseModel):
 
     mission_id: str
     display_name: str
+    short_name: str = ""  # compact profile label for headers, e.g. "ISR-18H Endurance"
+    profile: str = "other"  # isr | high_altitude | cap | patrol | training | test (Trends filter)
+    sortie_prefix: str = "SORTIE"  # sortie label stem, e.g. "ISR-18H" -> "ISR-18H-B"
+    description: str = ""  # one-line mission description for the sortie archive
     engine_id: str = "rotax914_like"
+    origin: str = "preset"  # preset (configs/missions) | plan (saved Mission Planner plan) | draft
     environment: EnvironmentConfig
     segments: list[SegmentConfig]
 
@@ -63,6 +69,24 @@ class MissionConfig(BaseModel):
     def total_duration_s(self) -> float:
         """Sum of all segment durations, in seconds."""
         return sum(s.duration_s for s in self.segments)
+
+    def with_overrides(
+        self, cruise_altitude_m: float | None = None, isa_deviation_k: float | None = None
+    ) -> MissionConfig:
+        """Return a copy of this mission with an ad-hoc cruise altitude and/or ISA deviation
+        applied — used by Mission Planner's parameter sliders to evaluate a variant of a
+        preset mission instead of only the fixed YAML values.
+        """
+        mission = self.model_copy(deep=True)
+        if cruise_altitude_m is not None:
+            for segment in mission.segments:
+                if "cruise" in segment.name:
+                    segment.target_altitude_m = cruise_altitude_m
+        if isa_deviation_k is not None:
+            mission.environment.base_isa_deviation_k = isa_deviation_k
+            for segment in mission.segments:
+                segment.isa_deviation_k = None
+        return mission
 
 
 class MissionRegistry:
@@ -89,6 +113,16 @@ class MissionRegistry:
     def list_missions(self) -> list[str]:
         """Return all discovered mission ids."""
         return sorted(self._missions)
+
+    def register(self, mission: MissionConfig) -> None:
+        """Add or replace a mission defined at runtime (a saved Mission Planner plan)."""
+        self._missions[mission.mission_id] = mission
+
+    def unregister(self, mission_id: str) -> None:
+        """Remove a runtime mission (YAML presets cannot be removed)."""
+        if mission_id in self._missions and self._missions[mission_id].origin == "preset":
+            raise ValueError(f"'{mission_id}' is a built-in mission preset")
+        self._missions.pop(mission_id, None)
 
 
 @dataclass

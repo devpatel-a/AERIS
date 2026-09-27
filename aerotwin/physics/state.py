@@ -109,6 +109,9 @@ class EngineOutputs:
     battery_soc: float
     vibration_rms_g: float
     vibration_bands_g: dict[str, float] = field(default_factory=dict)
+    oil_consumption_l_h: float = 0.0
+    coolant_mass_flow_kg_s: float = 0.0
+    coolant_pressure_kpa: float = 0.0
 
     def as_flat_dict(self) -> dict[str, float]:
         """Flatten to a dict suitable for a Parquet row / CAN frame payload."""
@@ -126,6 +129,9 @@ class EngineOutputs:
             "alternator_current_a": self.alternator_current_a,
             "battery_soc": self.battery_soc,
             "vibration_rms_g": self.vibration_rms_g,
+            "oil_consumption_l_h": self.oil_consumption_l_h,
+            "coolant_mass_flow_kg_s": self.coolant_mass_flow_kg_s,
+            "coolant_pressure_kpa": self.coolant_pressure_kpa,
         }
         for i in range(N_CYL):
             d[f"cht_{i + 1}_k"] = float(self.cht_k[i])

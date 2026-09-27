@@ -21,6 +21,7 @@ class Alert:
     severity: str
     message: str
     cleared: bool = False
+    acknowledged: bool = False  # read/acknowledged by an operator (notifications bell)
 
 
 @dataclass

@@ -1,0 +1,27 @@
+# Ground control station identity + datalink budget. Served by
+# /api/system/status for the login screen, shell and Simulation Control.
+station_id: GCS-ALPHA-01
+software_version: "3.8.4-RELEASE"
+software_tag: "v3.8-MIL"
+classification: "UNCLASSIFIED // FOUO // MIL-STD-1553B TELEMETRY SYSTEM"
+gateway: "DoD PKI SECURE GATEWAY"
+compliance: "CAC / PIV DoD PKI & FIPS 140-3 Compliant"
+crypto_level: 3
+fips_cert: "FIPS-140-3 CERT #4912"
+link_cipher: "AES-256-GCM"
+avionics_bus: "MIL-STD-1553B"
+operator_callsign: "Flight-Line Alpha"
+restricted_notice: "Authorized defense personnel only. Activities are monitored and audited under DoD Directive 8500.01E."
+
+# Line-of-sight C2 datalink budget (approx — replace with the fielded
+# datalink's spec sheet). Link margin = received power - receiver sensitivity,
+# with free-space path loss at the current slant range to the airframe.
+datalink:
+  frequency_mhz: 4400.0
+  tx_power_dbm: 40.0
+  tx_antenna_gain_dbi: 6.0
+  rx_antenna_gain_dbi: 18.0
+  cable_losses_db: 4.0
+  rx_sensitivity_dbm: -98.0
+  standoff_range_km: 45.0
+  gcs_antenna_height_m: 10.0  # approx — GCS mast height; sets the LOS radio horizon   # nominal ground distance of the loiter orbit from the GCS

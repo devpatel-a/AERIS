@@ -371,3 +371,112 @@ it's the recommended, safe default and is what every verification run in
 this log used.
 
 (Further decisions appended below as milestones progress.)
+
+## Stitch UI rebuild — Phase 1 (shell, routes, login)
+- **UI source of truth** is the Stitch project "AeroTwin Drone Engine Intelligence";
+  design tokens in `dashboard/tailwind.config.js` are copied from its exports.
+- **Operator login** is a simple application auth flow (no CAC/PIV hardware or
+  WebAuthn): operator ID + 6-8 digit PIN (salted PBKDF2) + clearance role →
+  HMAC-signed bearer token recorded in `auth_sessions` (expiry + revocation).
+  The "Insert CAC" button is kept as designed and moves focus to the PIN field.
+  The static `AEROTWIN_TOKEN` still authorizes scripts/tests.
+- **Demo operators** are seeded from `configs/users/operators.yaml` on first
+  API start (`python -m scripts.create_user --seed` to reseed).
+- **Fleet tails** were renumbered to the squadron identities shown in Stitch
+  (UAV-07/03/11/02/09/05); existing runs are remapped once (`PRAGMA user_version` 2).
+- **Station identity + datalink budget** live in `configs/gcs/station.yaml`;
+  link margin is a free-space link budget at the live slant range.
+
+## Stitch UI rebuild — Phase 2 (backend for every screen)
+- **Rotax 914 limits + cooling calibration.** CHT limit is now the real Rotax 914
+  135 °C (was 235 °C, an air-cooled figure); EGT 950 °C. `cylinder_ambient_htc_ref`
+  raised 55 → 70 so a healthy engine stays under 135 °C in climb on a +12 °C ISA
+  day (120–130 °C), while 18 % cooling loss or a 45 °C day breach it. Rear
+  cylinders carry a small cooling bias (`cylinder_cooling_bias`), so Cyl 3 runs hottest.
+- **Localized cooling fault.** `cooling_degradation` with a cylinder target models a
+  blocked duct: shared cooling path −25 %·severity, target head −35 %·severity.
+- **Sensor vs engine attribution.** Live sensor faults are now actually applied to
+  live measurements, and a simulated ECU loop self-test (thermocouple/transducer loop
+  resistance) accompanies each channel. An odd-one-out residual with a healthy loop
+  is attributed to a localized *engine* fault; with an abnormal loop, to the *sensor*.
+  Dropped samples (NaN) are synthesized from the twin ("Failsafe: Twin Synth").
+- **Retrained classifier** on 150 samples with the new physics (half of the cooling
+  cases localized): macro F1 0.32 → 0.96 (docs/ML_RESULTS.md).
+- **Lifetime RUL** = engine hours until the overall health index reaches the
+  maintenance threshold (70), from an exponential degradation fit over the tail's
+  recent sorties + the live point, bootstrap 90 % CI, capped at the TBO horizon.
+  The old in-flight particle filter (hours of *this* flight) is no longer shown.
+- **Stored telemetry** is 1 Hz, holds what the GCS received (measured values), the
+  twin's expected values and the classifier's residual features, so Replay can re-run
+  root-cause analysis on any stored window.
+- **HIL CAN bus.** Each live tick publishes the DBC frames on a per-session CAN
+  channel and decodes them with the receiver (heartbeat gaps/checksums); a telemetry
+  packet is HMAC-signed/verified once per simulated second.
+- **Planner** runs full-length missions at dt = 1 s (coarser steps are unstable) in
+  a process pool: central + 5 Monte Carlo + 2 mitigation runs (~20–30 s for 18 h).
+- **Fleet history** is seeded by `make seed`: every sortie in
+  `configs/history/fleet_history.yaml` is simulated through plant + twin + nominal
+  model + classifier. For speed the history twin uses the tail's *true* global wear
+  state (what the UKF converges to) instead of running the UKF itself.
+- Coolant pressure/flow, oil consumption and harmonic vibration (ips + envelope) are
+  new model outputs, all tagged approx in the engine YAML.
+
+## Phase 3 — Stitch screens (visual fidelity notes)
+
+- **Source of truth** is the Stitch project "AeroTwin Drone Engine Intelligence";
+  each page was converted from its exported HTML and compared side by side at
+  1280×1024. Values differ from Stitch's mock numbers wherever the data is real.
+- **Intentional deviations:** Digital Twin toolbar/layer panel sits above the
+  cylinder popover (z-40) so the layers stay clickable; "Breach Probability"
+  wording in the planner; the twin version chip reads "PARAMETRIC MODEL"; model
+  names are the real ones (UKF, XGBoost fault classifier, linear degradation
+  trend) instead of Stitch's "PINN-Prop-v4" / "L-M Solver" / "Weibull"; HIL/HMAC
+  footer text reflects the virtual bus on non-Linux; Replay export reads
+  "CRC-32 on export"; no Settings screen (not designed).
+- **Detection arming.** Detection, diagnosis, RUL events and limit warnings wait
+  for UKF convergence or `ARM_MAX_WAIT_S` (900 s), past taxi/takeoff. A fault
+  injected before convergence can hold confidence below 95 % indefinitely, so the
+  time fallback keeps detection working; the seeder uses the same rule.
+- **Live RUL** ignores the live health index until armed (warm-up health is not
+  wear); before that the prognosis uses the stored sortie history only.
+- **Report sign-off** has two slots signed by SHA-256 over the content (the
+  maintenance digest also covers the engineering digest); each needs its clearance
+  role in the current session.
+- **Report divergence chart** uses airborne samples after 900 s only.
+- **Twin confidence in seeded reports** is "--": the history seeder runs the twin
+  open-loop (no UKF) for speed, so there is no estimator confidence to report.
+
+## Mission Planner as a real planning tool
+
+- **One mission system.** A saved plan (`mission_plans`) stores the planner form
+  and its compiled `MissionConfig`, registered in the app's `MissionRegistry` as
+  `plan_NNNN` (loaded at API start). Sessions, replay, fleet history and reports
+  resolve it like a YAML preset; presets are the *mission types*
+  (`MissionConfig.origin == "preset"`), plans are never offered as types.
+- **Plan frame, not geography.** AERIS has no base coordinates, so waypoints are
+  km east/north of the GCS. Leg ground speed = TAS − the template's mean headwind
+  on every transit leg (conservative; the headwind the Stitch "Headwind" factor
+  shows). Climb/descent times use the airframe climb/descent rates in
+  `configs/planner.yaml` (approx — replace with the flight manual).
+- **Route → segments.** taxi/takeoff (template) → climb → one `transit` per leg,
+  a `hold` at waypoints with a hold time, the station waypoint's hold named after
+  the template's on-station segment (`loiter`, `cap_station`, …) and absorbing
+  the remaining endurance → `transit_home` → descent → landing (template).
+- **Datalink check** uses the station budget: free-space margin at the slant range
+  from the GCS mast and the 4/3-earth radio horizon (`gcs_antenna_height_m`).
+- **Edits invalidate the stored verdict**; a plan in flight cannot be edited and a
+  flown plan cannot be deleted (replay/history keep its mission definition).
+- **Twin evaluation** of a routed plan keeps power and surface temperature as
+  overrides so the "GO with condition" re-run can still vary them.
+
+## Interaction fixes (click audit)
+
+- Notifications bell had no handler: now a popover of the session's alerts with
+  acknowledge (`POST /api/alerts/ack`, persisted in the `alerts.acknowledged`
+  column when the sortie is saved); the dot shows unacknowledged alerts.
+- Digital Twin camera presets could not re-snap after orbiting/panning (clicking
+  the selected preset did nothing): presets now always re-frame and reset the pan.
+- Mission Replay timeline markers seconds apart overlapped and hid each other:
+  markers closer than 1 % of the timeline are clustered (tooltip lists all).
+- Simulation Control labels the "Standard Day" chip as the plan's own environment
+  when flying a saved plan.

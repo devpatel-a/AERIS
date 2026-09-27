@@ -41,6 +41,8 @@ class TwinStepResult:
     fault_locus: dict[str, str]
     degradation_state: dict[str, float]
     health: HealthSnapshot
+    confidence_pct: float
+    expected_ci: dict[str, list[float]]
 
 
 @dataclass
@@ -84,7 +86,9 @@ class DigitalTwin:
         self.t += self.dt
         return self.model.step(inputs)
 
-    def step_live(self, inputs: EngineInputs, measured: dict[str, float]) -> TwinStepResult:
+    def step_live(
+        self, inputs: EngineInputs, measured: dict[str, float], selftest_ok: dict[str, bool] | None = None
+    ) -> TwinStepResult:
         """Advance the twin one tick in LIVE mode: predict, compare, periodically correct.
 
         Core rule: only `inputs` (throttle/ambient/altitude/airspeed) drive
@@ -95,10 +99,17 @@ class DigitalTwin:
         expected_out = self.model.step(inputs)
         expected_flat = expected_out.as_flat_dict()
 
+        # Failsafe: a dropped/invalid sample (NaN) is synthesized from the twin's
+        # own prediction so the estimator and detectors keep running.
+        synthesized = [c for c, v in measured.items() if v != v]
+        if synthesized:
+            measured = {c: (expected_flat[c] if c in synthesized else v) for c, v in measured.items()}
         residuals = compute_residuals(measured, expected_flat)
         normalized = normalize_residuals(residuals)
         alarms = self.detector.update(normalized)
-        fault_locus = classify_fault_locus(normalized, CORRELATED_GROUPS)
+        fault_locus = classify_fault_locus(normalized, CORRELATED_GROUPS, selftest_ok=selftest_ok)
+        for c in synthesized:
+            fault_locus[c] = "sensor"
 
         if self.t - self._last_ukf_update_t >= self.ukf_update_interval_s:
             self.estimator.ukf.x[:N_PHYS] = self.model.state[:N_PHYS]
@@ -114,6 +125,15 @@ class DigitalTwin:
         )
         degradation_state = dict(zip(HEALTH_NAMES, (float(v) for v in self.model.health), strict=True))
 
+        # 95% prediction interval per measured channel, from the UKF's innovation
+        # covariance — powers the Twin Comparison confidence-envelope ribbon.
+        variance = self.estimator.measurement_variance
+        expected_ci = {
+            c: [float(expected_flat[c] - 1.96 * variance[c] ** 0.5), float(expected_flat[c] + 1.96 * variance[c] ** 0.5)]
+            for c in variance
+            if c in expected_flat
+        }
+
         return TwinStepResult(
             t_s=self.t,
             expected=expected_flat,
@@ -124,6 +144,8 @@ class DigitalTwin:
             fault_locus=fault_locus,
             degradation_state=degradation_state,
             health=health_snapshot,
+            confidence_pct=self.estimator.confidence_pct,
+            expected_ci=expected_ci,
         )
 
     @property
