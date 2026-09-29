@@ -1,34 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "dashboard": {
-      "root": "dashboard/",
-      "framework": "vite"
-    },
-    "backend": {
-      "root": "./",
-      "framework": "fastapi",
-      "entrypoint": "aerotwin.api.main:app"
-    }
-  },
+  "framework": "vite",
+  "installCommand": "npm --prefix dashboard ci",
+  "buildCommand": "npm --prefix dashboard run build",
+  "outputDirectory": "dashboard/dist",
   "rewrites": [
     {
-      "source": "/api",
-      "destination": {
-        "service": "backend"
-      }
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": {
-        "service": "backend"
-      }
-    },
-    {
       "source": "/(.*)",
-      "destination": {
-        "service": "dashboard"
-      }
+      "destination": "/index.html"
     }
   ]
 }

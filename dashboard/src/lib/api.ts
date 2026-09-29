@@ -1,6 +1,11 @@
 import { getToken, UNAUTHORIZED_EVENT } from "./authToken";
 
-export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+/**
+ * Backend origin (scheme + host, no trailing slash). Production builds set
+ * VITE_API_BASE to the hosted backend's https:// URL; the live WebSocket URL is
+ * derived from it (https -> wss). Unset falls back to the local dev backend.
+ */
+export const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8000").replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(public status: number, public detail: string) {

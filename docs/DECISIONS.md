@@ -480,3 +480,21 @@ this log used.
   markers closer than 1 % of the timeline are clustered (tooltip lists all).
 - Simulation Control labels the "Standard Day" chip as the plan's own environment
   when flying a saved plan.
+
+## Prototype deployment: dashboard on Vercel, backend on a container host
+
+- Vercel Functions cannot run the backend as-is: live/simulation sessions run as
+  background asyncio tasks after the request returns, session/replay/live-buffer
+  state is in process memory, `/ws/live` is a long-lived WebSocket, and the
+  Python dependency set (~800 MB installed) exceeds the function size limit.
+- So Vercel serves only the static dashboard (`vercel.json`: build `dashboard/`,
+  SPA fallback to `index.html` so `/login` and deep links load). The unchanged
+  FastAPI backend runs from the root `Dockerfile` on a host with a persistent
+  process and WebSockets (single uvicorn worker, listening on `$PORT`).
+- The dashboard reaches it cross-origin: `VITE_API_BASE` = the backend's
+  `https://` origin at build time; the live socket uses the same origin with
+  `wss://`. CORS already allows any origin; auth is a Bearer token (no cookies).
+  A Vercel build without `VITE_API_BASE` fails instead of shipping localhost.
+- On the backend host set `AEROTWIN_SESSION_SECRET`, `AEROTWIN_TOKEN` and
+  `AEROTWIN_EDGE_SECRET` (the defaults are dev-only), and attach a volume at
+  `/app/data` if mission logs/reports should survive restarts.
