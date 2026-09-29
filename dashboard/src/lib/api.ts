@@ -18,7 +18,11 @@ export async function request<T>(path: string, options: RequestInit = {}, _auth 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    cache: "no-store",
+    headers: { ...headers, ...(options.headers || {}) },
+  });
   if (!res.ok) {
     let detail = res.statusText;
     try {
